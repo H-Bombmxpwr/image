@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, render_template, flash, redirect, url_for
+from flask import Flask, request, send_file, render_template, flash, redirect, url_for,jsonify
 from PIL import Image
 import base64
 import io
@@ -63,7 +63,20 @@ def adjust_saturation():
 
 @app.route('/save_image', methods=['POST'])
 def save_image():
-    return "hello"# Handle the saving of the final image
+    image_data = request.json.get('image')
+    if not image_data:
+        return jsonify({'error': 'No image data provided'}), 400
+
+    # Decode the base64 image
+    image_data = image_data.split(",")[1]  # Remove the base64 prefix
+    image = base64.b64decode(image_data)
+    
+    # Save the image
+    filename = 'saved_image.jpg'  # You can generate a unique filename here
+    with open(os.path.join('saved_images', filename), 'wb') as f:
+        f.write(image)
+    
+    return jsonify({'message': 'Image saved successfully'}), 200
 
 @app.route('/convert_image', methods=['POST'])
 def convert_image():
