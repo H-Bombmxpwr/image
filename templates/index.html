@@ -9,31 +9,33 @@
 <body>
     <h1>Upload an image</h1>
     <input type="file" name="image" id="imageInput" accept="image/*" onchange="previewImage();">
-    <button id="saveButton">Save</button> <!-- Permanent save button -->
+    <button id="saveButton">Save</button>
 
-    <div id="previewContainer" style="display: flex; justify-content: center; align-items: center;">
+    <div id="previewContainer">
         <div id="previewSection">
             <h2>Preview:</h2>
-            <img id="imagePreview" src="" alt="Image preview..."/>
+            <img id="imagePreview" src="" alt="Image preview..." />
         </div>
-
-        <div id="actions">
-            <button id="cropButton">Crop</button>
-            <button id="cutButton" style="display: none;">Cut</button>
-            <button id="shrinkButton">Shrink/Expand</button>
-            <button id="seamCarveButton">Seam Carve</button>
-            <!-- Additional manipulation buttons can be added here -->
-        </div>
-
-        <div id="convertSection">
-            <h2>Convert:</h2>
-            <select id="imageFormat">
-                <option value="jpeg">JPEG</option>
-                <option value="png">PNG</option>
-            </select>
-            <button id="convertButton">Convert</button>
-        </div>
+        <button id="cutButton" style="display: none;">Cut</button>
     </div>
+
+    <div id="manipulationSection">
+        <h2>Manipulations:</h2>
+        <button id="cropButton">Crop</button>
+        <button id="shrinkButton">Shrink/Expand</button>
+        <button id="seamCarveButton">Seam Carve</button>
+        <!-- Additional manipulation buttons can be added here -->
+    </div>
+
+    <div id="convertSection">
+        <h2>Convert:</h2>
+        <select id="imageFormat">
+            <option value="jpeg">JPEG</option>
+            <option value="png">PNG</option>
+        </select>
+        <button id="convertButton">Convert</button>
+    </div>
+
     <!-- JavaScript files -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>

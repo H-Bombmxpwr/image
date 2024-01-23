@@ -20,36 +20,39 @@ header {
     margin-top: 20px;
 }
 
-#imagePreview {
-    /* Ensures the image fits within the container */
-    max-width: 100%;
-    max-height: 800px;
-    display: block; /* Change to none if you want to hide it initially */
-}
-
-#previewSection {
-    position: relative;
-    /* Set a max-width if necessary to contain the cropper container */
-}
-
 #previewContainer {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 20px; /* Add space above the container */
+    flex-direction: column;
 }
 
 #previewSection {
-    position: relative;
+    text-align: center;
 }
 
 #imagePreview {
     max-width: 100%;
     max-height: 800px;
-    display: block; /* or none, if you want it to be hidden initially */
+    display: block; /* Adjust as needed */
 }
 
-/* Adjust the margins as needed for your layout */
+#manipulationSection {
+    text-align: center;
+    margin-top: 20px;
+}
+
+#cutButton {
+    margin-top: 10px; /* Adds space between the image and the button */
+}
+/* Ensure the convert section is centered as well */
+#convertSection {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* Add styles for the save button and other elements as needed */
+
 #actions {
     display: flex;
     flex-direction: column;

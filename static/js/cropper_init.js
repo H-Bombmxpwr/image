@@ -24,8 +24,7 @@ document.getElementById('cropButton').addEventListener('click', function() {
     });
 
     // Show the "Cut" button
-    document.getElementById('actions').style.display = 'block'; // Show action buttons
-    document.getElementById('cutButton').style.display = 'inline'; // Show the "Cut" button next to the image
+    document.getElementById('cutButton').style.display = 'block'; // Show the "Cut" button
 });
 
 document.getElementById('cutButton').addEventListener('click', function() {
