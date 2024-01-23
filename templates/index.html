@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image Manipulation</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/cropper.css" />
+</head>
+<body>
+    <h1>Upload an image</h1>
+    <input type="file" name="image" id="imageInput" accept="image/*" onchange="previewImage();">
+
+    <div id="previewSection" style="display: none;">
+        <h2>Preview:</h2>
+        <img id="imagePreview" src="" alt="Image preview..." style="max-width: 800px; max-height: 800px;"/>
+    </div>
+
+    <div id="resizeSection">
+    <h2>Resize:</h2>
+    <div id="actions">
+        <button id="cropButton" onclick="enableCropper();">Crop</button>
+        <button id="saveButton" style="display: none;" onclick="saveCroppedImage();">Save</button>
+    </div>
+    <button id="shrinkbutton">Shrink/Expand</button>
+    <button id="seamCarveButton">Seam Carve</button>
+    <!-- Add additional manipulation buttons here -->
+    </div>
+
+    
+    
+    <div id="convertSection">
+        <h2>Convert:</h2>
+        <select id="imageFormat">
+            <option value="jpeg">JPEG</option>
+            <option value="png">PNG</option>
+        </select>
+        <button onclick="convertImage();">Convert</button>
+    </div>
+    
+
+    <!-- Add your script.js file -->
+    <script src="/static/js/script.js"></script>
+    <script src="/static/js/preview.js"></script>
+    <script src="/static/js/cropper.js"></script>
+    <script src="/static/js/cropper_init.js"></script>
+</body>
+</html>
