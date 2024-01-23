@@ -1,46 +1,51 @@
+// cropper_init.js
 let cropper;
-document.getElementById('imageInput').addEventListener('change', function(event) {
-    const file = event.target.files[0];
-    if (!file) {
+
+document.getElementById('cropButton').addEventListener('click', function() {
+    var imagePreview = document.getElementById('imagePreview');
+
+    // Destroy the previous instance of Cropper, if it exists
+    if (cropper) {
+        cropper.destroy();
+    }
+
+    // Initialize the Cropper.js on the image preview
+    cropper = new Cropper(imagePreview, {
+        viewMode: 1, // Contain the crop box within the canvas
+        dragMode: 'move', // Allow moving the image within the crop box
+        autoCropArea: 1, // Automatically adjust the crop box to the size of the image
+        restore: false, // Do not restore the cropped area after resize
+        guides: true, // Show the dashed lines for guiding
+        center: true, // Show the center indicator
+        highlight: false, // Do not highlight the crop box area
+        cropBoxMovable: true, // Allow moving the crop box
+        cropBoxResizable: true, // Allow resizing the crop box
+        toggleDragModeOnDblclick: false, // No toggling drag mode on double click
+    });
+
+    // Show the "Cut" button
+    document.getElementById('actions').style.display = 'block'; // Show action buttons
+    document.getElementById('cutButton').style.display = 'inline'; // Show the "Cut" button next to the image
+});
+
+document.getElementById('cutButton').addEventListener('click', function() {
+    if (!cropper) {
         return;
     }
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        document.getElementById('imagePreview').src = e.target.result;
-        document.getElementById('imagePreview').style.display = 'block';
+    // Get the cropped image data and replace the preview with it
+    cropper.getCroppedCanvas().toBlob(function(blob) {
+        // Update the preview image
+        var url = URL.createObjectURL(blob);
+        imagePreview.src = url;
 
-        if (cropper) {
-            cropper.destroy();
-        }
+        // Reset cropper for the next action
+        cropper.destroy();
+        cropper = null;
 
-        cropper = new Cropper(document.getElementById('imagePreview'), {
-            aspectRatio: 16 / 9, // or whatever aspect ratio you want
-            crop(event) {
-                console.log(event.detail.x);
-                console.log(event.detail.y);
-                console.log(event.detail.width);
-                console.log(event.detail.height);
-            },
-        });
-    };
-    reader.readAsDataURL(file);
-});
-
-
-document.getElementById('cropButton').addEventListener('click', function() {
-    const canvas = cropper.getCroppedCanvas();
-    canvas.toBlob(function(blob) {
-        // Now you can send this blob to the server...
-        // For example, using FormData and fetch:
-        const formData = new FormData();
-        formData.append('croppedImage', blob);
-
-        fetch('/manipulate/crop', {
-            method: 'POST',
-            body: formData,
-        }).then(response => {
-            // Handle the response from the server here
-        });
+        // Hide the "Cut" button until "Crop" is clicked again
+        document.getElementById('cutButton').style.display = 'none';
     });
 });
+
+// Add logic for "Save" and "Convert" buttons as well

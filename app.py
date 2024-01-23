@@ -61,5 +61,14 @@ def adjust_saturation():
     # Implement saturation adjustment logic here
     return send_file(io.BytesIO(modified_image), mimetype='image/jpeg')
 
+@app.route('/save_image', methods=['POST'])
+def save_image():
+    return "hello"# Handle the saving of the final image
+
+@app.route('/convert_image', methods=['POST'])
+def convert_image():
+    # Handle the conversion between different image formats
+    return "hello"
+
 if __name__ == '__main__':
     app.run(debug=True)

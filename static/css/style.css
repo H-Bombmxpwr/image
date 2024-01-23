@@ -19,3 +19,42 @@ header {
 #image-display {
     margin-top: 20px;
 }
+
+#imagePreview {
+    /* Ensures the image fits within the container */
+    max-width: 100%;
+    max-height: 800px;
+    display: block; /* Change to none if you want to hide it initially */
+}
+
+#previewSection {
+    position: relative;
+    /* Set a max-width if necessary to contain the cropper container */
+}
+
+#previewContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px; /* Add space above the container */
+}
+
+#previewSection {
+    position: relative;
+}
+
+#imagePreview {
+    max-width: 100%;
+    max-height: 800px;
+    display: block; /* or none, if you want it to be hidden initially */
+}
+
+/* Adjust the margins as needed for your layout */
+#actions {
+    display: flex;
+    flex-direction: column;
+    margin-left: 20px;
+}
+
+/* Additional styles for buttons and other elements */
+
