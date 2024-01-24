@@ -116,5 +116,22 @@ def convert_image():
     # Handle the conversion between different image formats
     return "hello"
 
+
+@app.route('/manipulate/rotate', methods=['POST'])
+def rotate_image():
+    data = request.get_json()
+    image_data = data['image'].split(",")[1]
+    degrees = int(data['degrees'])
+
+    image_stream = io.BytesIO(base64.b64decode(image_data))
+    img = Image.open(image_stream)
+    rotated_img = img.rotate(degrees, expand=True)  # expand=True to accommodate the new image size
+
+    buffered = io.BytesIO()
+    rotated_img.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+
+    return jsonify({'img_data': f"data:image/jpeg;base64,{img_str}"})
+
 if __name__ == '__main__':
     app.run(debug=True)

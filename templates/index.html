@@ -20,6 +20,7 @@
             </div>
         </div>
         <button id="cutButton" style="display: none;">Cut</button>
+        <input type="number" id="rotateInput" placeholder="Enter degrees" style="display: none;">
         <input type="range" id="seamCarveSlider" min="1" max="originalWidth" value="originalWidth"><span id="currentWidth"></span>
         <input type="text" id="filenameInput" placeholder="Enter desired filename">
         <div id="dimensions">
@@ -33,6 +34,7 @@
         <button id="cropButton">Crop</button>
         <button id="shrinkButton">Shrink/Expand</button>
         <button id="seamCarveButton">Seam Carve</button>
+        <button id="rotateButton">Rotate</button>
         <!-- Additional manipulation buttons can be added here -->
     </div>
 
@@ -55,5 +57,6 @@
     <script src="/static/js/shrink.js"></script>
     <script src="/static/js/resize_handle.js"></script>
     <script src="/static/js/seam.js"></script>
+    <script src="/static/js/rotate.js"></script>
 </body>
 </html>

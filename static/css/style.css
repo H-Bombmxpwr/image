@@ -115,5 +115,9 @@ header {
     width: 50px; /* Adjust as needed */
 }
 
+#rotateInput {
+    margin-top: 10px; /* Adjust spacing as needed */
+    /* Additional styling */
+}
 
 
