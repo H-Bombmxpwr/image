@@ -133,5 +133,26 @@ def rotate_image():
 
     return jsonify({'img_data': f"data:image/jpeg;base64,{img_str}"})
 
+@app.route('/manipulate/resample', methods=['POST'])
+def resample_image():
+    data = request.get_json()
+    image_data = data['image'].split(",")[1]  # Remove the base64 prefix
+    width = data['width']
+    height = data['height']
+
+    # Decode the base64 image
+    image_bytes = base64.b64decode(image_data)
+    img = Image.open(io.BytesIO(image_bytes))
+
+    # Resample the image
+    resampled_img = img.resize((width, height), Image.ANTIALIAS)
+
+    # Convert the resampled image to base64
+    buffered = io.BytesIO()
+    resampled_img.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+
+    return jsonify({'img_data': f"data:image/jpeg;base64,{img_str}"})
+
 if __name__ == '__main__':
     app.run(debug=True)
