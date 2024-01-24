@@ -8,7 +8,6 @@ function previewImage() {
         reader.onload = function(e) {
             imagePreview.src = e.target.result;
             previewSection.style.display = 'block';
-            document.getElementById('resizeSection').style.display = 'none'; // Hide resize tools initially
         };
         reader.readAsDataURL(input.files[0]);
     }

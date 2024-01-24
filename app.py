@@ -3,7 +3,9 @@ from PIL import Image,ImageOps
 import base64
 import io
 import os
+import numpy as np
 from src.crop_utils import crop_image
+import seam_carving
 
 app = Flask(__name__)
 @app.route('/')
@@ -40,11 +42,6 @@ def crop_image():
 
     file = request.files['croppedImage']
     img = Image.open(file.stream)
-
-    # Perform cropping using PIL here if necessary
-    # ...
-
-    # Then save the cropped image to a BytesIO buffer and send it back
     buf = io.BytesIO()
     img.save(buf, format='JPEG')
     buf.seek(0)
@@ -53,8 +50,29 @@ def crop_image():
 
 @app.route('/manipulate/seam_carve', methods=['POST'])
 def seam_carve_image():
-    # Implement seam carving logic here
-    return send_file(io.BytesIO(modified_image), mimetype='image/jpeg')
+    data = request.get_json()
+    image_data = data['image'].split(",")[1]  # Remove the base64 prefix
+    seams_to_remove = int(data['seams_to_remove'])
+
+    # Decode the base64 image and create an in-memory stream
+    image_stream = io.BytesIO(base64.b64decode(image_data))
+    img = Image.open(image_stream).convert('RGB')  # Convert image to RGB
+    src = np.array(img)
+
+    # Calculate the new width after removing the seams
+    new_width = src.shape[1] - seams_to_remove
+    dst = seam_carving.resize(src, (new_width, src.shape[0]), energy_mode='backward', order='width-first')
+
+    # Convert the carved numpy array back to a PIL Image
+    carved_img = Image.fromarray(dst)
+
+    # Convert the carved image to base64 for transmission
+    buffered = io.BytesIO()
+    carved_img.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+
+    return jsonify({'img_data': f"data:image/jpeg;base64,{img_str}"})
+
 
 @app.route('/manipulate/resize', methods=['POST'])
 def resize_image():

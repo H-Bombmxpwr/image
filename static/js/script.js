@@ -1,13 +1,5 @@
-document.getElementById('cropButton').addEventListener('click', () => {
-    manipulateImage('crop');
-});
-
-document.getElementById('seamCarveButton').addEventListener('click', () => {
-    manipulateImage('seam_carve');
-});
-
-document.getElementById('saturationButton').addEventListener('click', () => {
-    manipulateImage('saturation');
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('seamCarveSlider').style.display = 'none';
 });
 
 
@@ -28,11 +20,7 @@ function manipulateImage(action) {
     .then(response => response.blob())
     .then(blob => {
         const imageURL = URL.createObjectURL(blob);
-        document.getElementById('displayedImage').src = imageURL;
+        
     })
     .catch(error => console.error('Error:', error));
 }
-
-document.getElementById('uploadButton').addEventListener('click', () => {
-    document.getElementById('imageInput').click();
-});

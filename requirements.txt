@@ -1,2 +1,4 @@
 Flask==2.2.2
+numpy==1.24.1
 Pillow==10.2.0
+seam_carving==1.1.0

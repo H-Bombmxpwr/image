@@ -103,3 +103,17 @@ header {
     display: none; /* Hide the handle initially */
 }
 
+#seamCarveSlider {
+    display: none; /* Slider is hidden initially */
+    width: 80%; /* Adjust the width as needed */
+    margin: 10px auto; /* Center the slider */
+}
+
+#currentWidth {
+    display: inline-block;
+    margin-left: 10px;
+    width: 50px; /* Adjust as needed */
+}
+
+
+
