@@ -11,13 +11,20 @@
     <input type="file" name="image" id="imageInput" accept="image/*" onchange="previewImage();">
     <button id="saveButton">Save</button>
 
-    <div id="previewContainer">
+    <div id="previewContainer" class="resizable-container">
         <div id="previewSection">
             <h2>Preview:</h2>
-            <img id="imagePreview" src="" alt="Image preview..." />
+            <div id="imageContainer" style="display: inline-block; position: relative;">
+                <img id="imagePreview" src="" alt="Image preview..." style="width: 100%; height: auto;" />
+                <div id="resizeHandle"></div>
+            </div>
         </div>
-        <input type="text" id="filenameInput" placeholder="Enter filename">
         <button id="cutButton" style="display: none;">Cut</button>
+        <input type="text" id="filenameInput" placeholder="Enter desired filename">
+        <div id="dimensions">
+            Width: <span id="width"></span>px, Height: <span id="height"></span>px, Type: <span id="fileType"></span>
+        </div>
+        
     </div>
 
     <div id="manipulationSection">
@@ -44,5 +51,7 @@
     <script src="/static/js/preview.js"></script>
     <script src="/static/js/cropper_init.js"></script>
     <script src="/static/js/save.js"></script>
+    <script src="/static/js/shrink.js"></script>
+    <script src="/static/js/resize_handle.js"></script>
 </body>
 </html>

@@ -61,3 +61,45 @@ header {
 
 /* Additional styles for buttons and other elements */
 
+.resizable-container {
+    display: inline-block;
+    position: relative;
+}
+
+.resizable {
+    resize: both;
+    overflow: auto;
+}
+
+#imageContainer {
+    resize: both;
+    overflow: auto;
+    max-width: 100%;
+    max-height: 80vh; /* Adjust as needed */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#imagePreview {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+
+.resizable {
+    position: relative;
+    /* Other styles... */
+}
+
+#resizeHandle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 20px; /* Adjust size as needed */
+    height: 20px; /* Adjust size as needed */
+    background: #000; /* Choose a color that stands out */
+    cursor: nwse-resize; /* This cursor indicates resizing */
+    display: none; /* Hide the handle initially */
+}
+

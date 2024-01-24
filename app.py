@@ -1,5 +1,5 @@
 from flask import Flask, request, send_file, render_template, flash, redirect, url_for,jsonify
-from PIL import Image
+from PIL import Image,ImageOps
 import base64
 import io
 import os
@@ -56,10 +56,25 @@ def seam_carve_image():
     # Implement seam carving logic here
     return send_file(io.BytesIO(modified_image), mimetype='image/jpeg')
 
-@app.route('/manipulate/saturation', methods=['POST'])
-def adjust_saturation():
-    # Implement saturation adjustment logic here
-    return send_file(io.BytesIO(modified_image), mimetype='image/jpeg')
+@app.route('/manipulate/resize', methods=['POST'])
+def resize_image():
+    data = request.get_json()
+    image_data = data['image'].split(",")[1]  # Remove the base64 prefix
+    scale = float(data['scale']) / 50  # Adjust scale based on slider value
+
+    # Decode the base64 image
+    image = Image.open(io.BytesIO(base64.b64decode(image_data)))
+
+    # Resize the image
+    new_size = (int(image.width * scale), int(image.height * scale))
+    image = ImageOps.fit(image, new_size, Image.ANTIALIAS)
+
+    # Convert back to base64
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+
+    return jsonify({'img_data': f"data:image/jpeg;base64,{img_str}"})
 
 @app.route('/save_image', methods=['POST'])
 def save_image():
