@@ -6,37 +6,40 @@
   <title>Image Lab — Fast Online Editor</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/cropper.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
 </head>
 <body>
 
     <header class="topbar">
-  <div class="leftslot">
-    <div class="brand">Image Lab</div>
-    <span class="muted">Name: <b id="fileName">untitled</b></span>
-    <a id="helpLink" class="ghost" href="{{ url_for('help_page') }}" target="_blank" rel="noopener">Help</a>
-  </div>
+        <div style="display:flex; align-items:center; gap:10px">
+            <div class="brand">Image Lab</div>
+            <span class="muted">Name: <b id="fileName">untitled</b></span>
+            <!-- Left-side quick links -->
+            <a id="helpLinkLeft" class="ghost" href="{{ url_for('help_page') }}" target="_blank" rel="noopener">Help</a>
+            <a id="aboutLinkLeft" class="ghost" href="{{ url_for('about_page') }}" target="_blank" rel="noopener">About</a>
+        </div>
 
-  <div class="actions">
-    <label class="file-btn">
-      <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
-      <span>Open Image</span>
-    </label>
-    <button id="btnPaste" class="ghost">Paste</button>
+        <div class="actions">
+            <label class="file-btn">
+            <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
+            <span>Open Image</span>
+            </label>
+            <button id="btnPaste" class="ghost">Paste</button>
 
-    <div class="sep"></div>
-    <label>Export format
-      <select id="exportFormat" class="select">
-        <option value="png">PNG</option>
-        <option value="jpeg">JPEG</option>
-        <option value="webp">WEBP</option>
-        <option value="bmp">BMP</option>
-        <option value="tiff">TIFF</option>
-      </select>
-    </label>
-    <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="quality" />
-    <button id="btnCopy" class="ghost">Copy</button>
-    <button id="btnDownload" class="primary">Download</button>
-  </div>
+            <div class="sep"></div>
+            <label>Export format
+            <select id="exportFormat" class="select">
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WEBP</option>
+                <option value="bmp">BMP</option>
+                <option value="tiff">TIFF</option>
+            </select>
+            </label>
+            <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="quality" />
+            <button id="btnCopy" class="ghost">Copy</button>
+            <button id="btnDownload" class="primary">Download</button>
+        </div>
 </header>
 
 
@@ -53,6 +56,7 @@
         <div><b>Mode:</b> <span id="infoMode">—</span></div>
         <div><b>Dimensions:</b> <span id="infoDim">—</span></div>
         <div><b>Average RGB:</b> <span id="infoAvg">—</span></div>
+        <div><b>Aspect:</b> <span id="infoAspect">—</span></div>
         <div><b>File Size:</b> <span id="infoSize">—</span></div>
       </div>
 

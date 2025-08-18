@@ -321,5 +321,10 @@ def api_export():
     buf.seek(0)
     return send_file(buf, mimetype=mime, as_attachment=True, download_name=f"edited.{fmt_key}")
 
+@app.get("/about")
+def about_page():
+    return render_template("about.html")
+
+
 if __name__ == "__main__":
     app.run(debug=True)

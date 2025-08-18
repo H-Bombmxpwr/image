@@ -4,6 +4,7 @@ let ORIGINAL = null;       // original loaded image (null until user loads/paste
 let FILE_NAME = 'untitled';
 let CROP = null;           // Cropper instance
 let HISTORY = [];          // [{label, snapshot}]
+let ASPECT = null;
 
 const cv = document.getElementById('canvas');
 const ctx = cv.getContext('2d');
@@ -108,17 +109,29 @@ function renderHistory(){
 
 function updateInfo(meta, exif){
   document.getElementById('infoFormat').textContent = meta.format || '—';
-  document.getElementById('infoMode').textContent = meta.mode || '—';
-  document.getElementById('infoDim').textContent = `${meta.width} × ${meta.height}`;
-  document.getElementById('infoAvg').textContent = `rgb(${meta.mean_rgb.join(', ')})`;
-  document.getElementById('infoSize').textContent = meta.file_size_str || '—';
-  document.getElementById('exifBox').textContent = JSON.stringify(exif || {}, null, 2);
+  document.getElementById('infoMode').textContent   = meta.mode || '—';
+  document.getElementById('infoDim').textContent    = `${meta.width} × ${meta.height}`;
+  document.getElementById('infoAvg').textContent    = `rgb(${meta.mean_rgb.join(', ')})`;
+  document.getElementById('infoSize').textContent   = meta.file_size_str || '—';
+  document.getElementById('exifBox').textContent    = JSON.stringify(exif || {}, null, 2);
 
-  // Keep resize inputs in sync
-  document.getElementById('resizeW').value = meta.width;
-  document.getElementById('resizeH').value = meta.height;
+  // NEW: aspect, reduced
+  const g = (a,b)=>{ while(b){ [a,b] = [b, a % b]; } return a; };
+  const gg = g(meta.width, meta.height);
+  const aspectText = `${meta.width/gg}:${meta.height/gg}`;
+  const aspectEl = document.getElementById('infoAspect');
+  if (aspectEl) aspectEl.textContent = aspectText;
 
-  // Seam slider range + label
+  // keep for W/H sync
+  ASPECT = meta.width / meta.height;
+
+  // Reflect current dims into inputs
+  const wEl = document.getElementById('resizeW');
+  const hEl = document.getElementById('resizeH');
+  wEl.value = meta.width;
+  hEl.value = meta.height;
+
+  // Seam slider sync (unchanged)
   const seam = document.getElementById('seamSlider');
   const seamW = document.getElementById('seamW');
   if(seam && seamW){
@@ -128,6 +141,7 @@ function updateInfo(meta, exif){
     seamW.textContent = `${meta.width} px`;
   }
 }
+
 
 async function refreshInspect(){
   if(!CURRENT) return;
@@ -156,7 +170,30 @@ document.getElementById('fileInput').addEventListener('change', (e)=>{
 });
 
 /* Paste button */
-document.getElementById('btnPaste').addEventListener('click', async ()=>{ await tryReadFromClipboard(); });
+document.getElementById('btnPaste').addEventListener('click', async ()=>{
+  // If we can use the async Clipboard API in a secure context, try that first
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await tryReadFromClipboard(); return; }
+    catch (e) { /* fall through to overlay */ }
+  }
+  // Fallback: show overlay and wait for a one-time paste event
+  const ov = document.getElementById('pasteOverlay');
+  ov.classList.remove('hidden');
+  const onPaste = async (e)=>{
+    ov.classList.add('hidden');
+    window.removeEventListener('paste', onPaste);
+    for(const item of e.clipboardData.items){
+      if(item.type.startsWith('image/')){
+        const blob = item.getAsFile();
+        if(ORIGINAL && !confirm('Replace current image with the pasted one?')) return;
+        await openFile(new File([blob], 'pasted', { type: blob.type || 'image/png' }));
+        return;
+      }
+    }
+    alert('Clipboard did not contain an image.');
+  };
+  window.addEventListener('paste', onPaste, { once:true });
+});
 
 /* Paste anywhere */
 async function tryReadFromClipboard(){
@@ -205,6 +242,30 @@ document.querySelectorAll('.tab').forEach(btn=>{
     if (target) target.classList.add('show');
   });
 });
+
+(()=>{
+  const wEl = document.getElementById('resizeW');
+  const hEl = document.getElementById('resizeH');
+  const keep = document.getElementById('keepAspect');
+  if(!wEl || !hEl || !keep) return;
+
+  let locking = false; // prevent recursion
+  wEl.addEventListener('input', ()=>{
+    if (!keep.checked || !ASPECT || locking) return;
+    locking = true;
+    const w = Math.max(1, parseInt(wEl.value||'1',10));
+    hEl.value = Math.max(1, Math.round(w / ASPECT));
+    locking = false;
+  });
+  hEl.addEventListener('input', ()=>{
+    if (!keep.checked || !ASPECT || locking) return;
+    locking = true;
+    const h = Math.max(1, parseInt(hEl.value||'1',10));
+    wEl.value = Math.max(1, Math.round(h * ASPECT));
+    locking = false;
+  });
+})();
+
 
 /* ========== Basic ========== */
 document.getElementById('btnRotNeg90').addEventListener('click', async ()=>{

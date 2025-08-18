@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Lab — About</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
+  <style>
+    .page {max-width: 920px; margin: 24px auto; padding: 0 16px;}
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: var(--elev);
+    }
+    .links {display:flex; gap:14px; margin-top: 10px; flex-wrap: wrap}
+    .links a {text-decoration:none}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a class="link" href="{{ url_for('index') }}">← Back</a></div>
+    <div class="actions">
+      <a class="ghost" href="{{ url_for('help_page') }}">Help</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="card">
+      <h1 style="margin-top:0">About Image Lab</h1>
+      <p>
+        Image Lab is a fast, browser-based image editor with a Python (Flask) backend.
+        It supports cropping, resizing, color adjustments, filters, background removal,
+        histogram equalization, and content-aware seam carving.
+      </p>
+      <p><b>By Hunter</b></p>
+      <div class="links">
+        <a class="primary" href="https://hxr.life" target="_blank" rel="noopener">hxr.life</a>
+        <a class="ghost" href="https://github.com/H-Bombmxpwr/image" target="_blank" rel="noopener">GitHub: H-Bombmxpwr/image</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
