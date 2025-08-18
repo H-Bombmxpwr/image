@@ -1,70 +1,239 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <title>Image Manipulation</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Lab — Fast Online Editor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/cropper.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Upload an image</h1>
-    <input type="file" name="image" id="imageInput" accept="image/*" onchange="previewImage();">
-    <button id="saveButton">Save</button>
 
-    <div id="previewContainer" class="resizable-container">
-        <div id="previewSection">
-            <h2>Preview:</h2>
-            <div id="imageContainer" style="display: inline-block; position: relative;">
-                <img id="imagePreview" src="" alt="Image preview..." style="width: 100%; height: auto;" />
-                <div id="resizeHandle"></div>
+  <header class="topbar">
+    <div class="brand">
+      <span>Image Lab</span>
+      <span class="filename" id="fileName">untitled</span>
+    </div>
+    <nav class="nav">
+      <a href="{{ url_for('help_page') }}" class="link">Help</a>
+    </nav>
+    <div class="actions">
+      <label class="file-btn">
+        <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
+        <span>Open Image</span>
+      </label>
+      <button id="btnPaste" class="ghost">Paste</button>
+      <div class="sep"></div>
+      <label class="label">Export as</label>
+      <select id="exportFormat" class="select">
+        <option value="png">PNG</option>
+        <option value="jpeg">JPEG</option>
+        <option value="webp">WEBP</option>
+        <option value="bmp">BMP</option>
+        <option value="tiff">TIFF</option>
+      </select>
+      <label class="label">Quality</label>
+      <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="Export quality (1–100)" />
+      <button id="btnCopy" class="ghost">Copy</button>
+      <button id="btnDownload" class="primary">Download</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- LEFT: preview + info + exif + history -->
+    <section class="left">
+      <div id="dropZone" class="stage" tabindex="0" aria-label="Canvas preview and drop zone">
+        <canvas id="canvas"></canvas>
+        <div id="dropHint">Drop or paste an image</div>
+      </div>
+
+      <div class="info">
+        <div><b>Format:</b> <span id="infoFormat">—</span></div>
+        <div><b>Mode:</b> <span id="infoMode">—</span></div>
+        <div><b>Dimensions:</b> <span id="infoDim">—</span></div>
+        <div><b>Average RGB:</b> <span id="infoAvg">—</span></div>
+        <div><b>File Size:</b> <span id="infoSize">—</span></div>
+      </div>
+
+      <details class="exif">
+        <summary>Metadata (EXIF)</summary>
+        <pre id="exifBox">{}</pre>
+      </details>
+
+      <!-- HISTORY now lives here (left) -->
+      <div class="history-wrap">
+        <div class="group-title">History</div>
+        <div id="historyList" class="history"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: tools with tabs -->
+    <section class="right">
+      <div class="tabs">
+        <button class="tab active" data-panel="basic">Basic</button>
+        <button class="tab" data-panel="adjust">Adjust</button>
+        <button class="tab" data-panel="filters">Filters</button>
+        <button class="tab" data-panel="advanced">Advanced</button>
+      </div>
+
+      <div class="tool-panels">
+        <!-- BASIC -->
+        <div id="panel-basic" class="panel show">
+          <div class="group">
+            <div class="group-title">Editing</div>
+            <div class="toolbar">
+              <button id="openCropper" class="btn">Crop</button>
+              <button id="btnFlipH" class="btn">Flip H</button>
+              <button id="btnFlipV" class="btn">Flip V</button>
             </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">Rotate</div>
+            <div class="toolbar">
+              <button id="btnRotNeg90" class="btn">Rotate −90°</button>
+              <button id="btnRotPos90" class="btn">Rotate +90°</button>
+            </div>
+            <details class="advanced">
+              <summary>Advanced</summary>
+              <div class="row">
+                <label>Degrees <input id="rotateDeg" type="number" value="0" step="1" class="num"></label>
+                <button id="btnRotate" class="btn">Apply</button>
+              </div>
+            </details>
+          </div>
+
+          <div class="group">
+            <div class="group-title">Resize</div>
+            <div class="grid">
+              <label>Width <input id="resizeW" type="number" min="1" class="num"></label>
+              <label>Height <input id="resizeH" type="number" min="1" class="num"></label>
+              <label class="chk"><input id="keepAspect" type="checkbox" checked> Keep aspect</label>
+              <label>Method
+                <select id="resampleMethod" class="select">
+                  <option value="lanczos">Lanczos</option>
+                  <option value="bicubic">Bicubic</option>
+                  <option value="bilinear">Bilinear</option>
+                  <option value="nearest">Nearest</option>
+                </select>
+              </label>
+              <button id="btnResize" class="btn full">Resize</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">Convert (re-encode)</div>
+            <div class="row">
+              <label>To
+                <select id="convertTo" class="select">
+                  <option value="png">PNG</option>
+                  <option value="jpeg">JPEG</option>
+                  <option value="webp">WEBP</option>
+                  <option value="bmp">BMP</option>
+                  <option value="tiff">TIFF</option>
+                </select>
+              </label>
+              <label>Quality</label>
+              <input id="convertQuality" class="num" type="number" min="1" max="100" value="92" />
+              <button id="btnConvert" class="btn">Convert</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">File</div>
+            <div class="row">
+              <button id="btnRename" class="btn">Rename</button>
+            </div>
+          </div>
         </div>
-        <button id="cutButton" style="display: none;">Cut</button>
-        <input type="number" id="resampleWidthInput" placeholder="Width" style="display: none;" />
-        <input type="number" id="resampleHeightInput" placeholder="Height" style="display: none;" />
-        <button id="resampleUpdateButton" style="display: none;">Update</button>
-        <input type="number" id="rotateInput" placeholder="Enter degrees" style="display: none;">
-        <input type="range" id="seamCarveSlider" min="1" max="originalWidth" value="originalWidth"><span id="currentWidth"></span>
-        <input type="text" id="filenameInput" placeholder="Enter desired filename">
-        <div id="dimensions">
-            Width: <span id="width"></span>px, Height: <span id="height"></span>px, Type: <span id="fileType"></span>
+
+        <!-- ADJUST -->
+        <div id="panel-adjust" class="panel">
+          <div class="group">
+            <div class="group-title">Tone & Color</div>
+            <div class="grid">
+              <label>Brightness <input id="adjBright" type="range" min="0" max="200" value="100"></label>
+              <label>Contrast <input id="adjContrast" type="range" min="0" max="200" value="100"></label>
+              <label>Saturation <input id="adjSaturation" type="range" min="0" max="200" value="100"></label>
+              <label>Gamma <input id="adjGamma" type="range" min="10" max="500" value="100"></label>
+              <button id="btnAdjust" class="btn full">Apply adjustments</button>
+            </div>
+          </div>
         </div>
-        
+
+        <!-- FILTERS -->
+        <div id="panel-filters" class="panel">
+          <div class="group">
+            <div class="group-title">Filters</div>
+            <div class="grid">
+              <label class="chk"><input id="fGrayscale" type="checkbox"> Grayscale</label>
+              <label class="chk"><input id="fSepia" type="checkbox"> Sepia</label>
+              <label class="chk"><input id="fInvert" type="checkbox"> Invert</label>
+              <label class="chk"><input id="fSharpen" type="checkbox"> Sharpen</label>
+              <label class="chk"><input id="fEdge" type="checkbox"> Edges</label>
+              <label class="chk"><input id="fEmboss" type="checkbox"> Emboss</label>
+
+              <label>Gaussian radius <input id="fGaussR" class="num" type="number" min="0" step="0.5" value="1.5"></label>
+              <label class="chk"><input id="fGaussian" type="checkbox"> Gaussian</label>
+
+              <label>Median size <input id="fMedianSize" class="num" type="number" min="3" step="2" value="3"></label>
+              <label class="chk"><input id="fMedian" type="checkbox"> Median</label>
+
+              <label>Posterize bits <input id="fPoster" class="num" type="number" min="1" max="8" value="0"></label>
+              <label>Pixelate <input id="fPixel" class="num" type="number" min="1" value="1"></label>
+
+              <button id="btnFilters" class="btn full">Apply filters</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ADVANCED -->
+        <div id="panel-advanced" class="panel">
+          <div class="group">
+            <div class="group-title">Histogram Equalization</div>
+            <div class="row">
+              <button id="btnHistEq" class="btn">Run</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">Background</div>
+            <div class="row">
+              <label>Remove solid background (tolerance 0–100)</label>
+              <input id="bgTol" type="range" min="0" max="100" value="18">
+              <button id="btnBgRemove" class="btn">Remove</button>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">Seam Carving (live)</div>
+            <div class="row">
+              {% if has_seam %}
+                <input id="seamSlider" type="range" min="10" max="2000" value="400" class="flex">
+                <span id="seamW" class="muted">— px</span>
+              {% else %}
+                <em class="muted">seam-carving backend not installed</em>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Cropper Modal -->
+  <dialog id="cropDialog">
+    <div class="crop-wrap">
+      <img id="cropImage" alt="crop preview">
     </div>
-
-
-
-    <div id="manipulationSection">
-        <h2>Manipulations:</h2>
-        <button id="cropButton">Crop</button>
-        <button id="shrinkButton">Shrink/Expand</button>
-        <button id="seamCarveButton">Seam Carve</button>
-        <button id="rotateButton">Rotate</button>
-        <button id="resampleButton">Resample</button>
-        <!-- Additional manipulation buttons can be added here -->
+    <div class="crop-actions">
+      <button id="cropCancel" class="ghost">Cancel</button>
+      <button id="cropApply" class="primary">Crop</button>
     </div>
+  </dialog>
 
-    <div id="convertSection">
-        <h2>Convert:</h2>
-        <select id="imageFormat">
-            <option value="jpeg">JPEG</option>
-            <option value="png">PNG</option>
-        </select>
-        <button id="convertButton">Convert</button>
-    </div>
-
-    <!-- JavaScript files -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
-    <script src="/static/js/script.js"></script>
-    <script src="/static/js/preview.js"></script>
-    <script src="/static/js/cropper_init.js"></script>
-    <script src="/static/js/save.js"></script>
-    <script src="/static/js/shrink.js"></script>
-    <script src="/static/js/resize_handle.js"></script>
-    <script src="/static/js/seam.js"></script>
-    <script src="/static/js/rotate.js"></script>
-    <script src="/static/js/resample.js"></script>
-
+  <script src="{{ url_for('static', filename='vendor/cropper.min.js') }}"></script>
+  <script>const HAS_SEAM = {{ 'true' if has_seam else 'false' }};</script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

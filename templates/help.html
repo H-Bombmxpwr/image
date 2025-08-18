@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Lab — Help</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .doc {max-width: 980px; margin: 24px auto; padding: 0 16px;}
+    .doc h1{margin:0 0 8px}
+    .doc h2{margin-top:28px}
+    .doc code{background:rgba(255,255,255,.06); padding:.1rem .35rem; border-radius:.35rem}
+    .doc pre{background:rgba(255,255,255,.06); padding:.75rem; border-radius:.5rem; overflow:auto}
+    .doc .note{color:var(--muted)}
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:14px 0 26px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px}
+    .card img{width:100%;display:block;border-radius:8px}
+    .card .cap{margin-top:6px;font-size:13px;color:var(--muted)}
+    .hero{display:flex;gap:16px;align-items:flex-start;margin:14px 0 8px}
+    .hero img{width:260px;border-radius:12px;border:1px solid var(--border)}
+    .hero .meta{color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><a class="link" href="{{ url_for('index') }}">← Back</a></div>
+    <div class="actions"></div>
+  </header>
+
+  <main class="doc">
+    <h1>Help & Reference</h1>
+    <p class="note">This page explains each tool, how it works, and shows examples derived from <code>static/images/memory.jpg</code>.</p>
+
+    <!-- Hero / original -->
+    <section class="hero">
+      <img src="{{ memory_url }}" alt="Original sample">
+      <div>
+        <b>Original sample</b>
+        <div class="meta">Shown as the basis for the gallery below.</div>
+      </div>
+    </section>
+
+    <!-- Example gallery -->
+    <section>
+      <h2>Worked Examples</h2>
+      <div class="gallery">
+        {% for ex in examples %}
+          <div class="card">
+            <img src="{{ ex.img }}" alt="{{ ex.label }}">
+            <div class="cap">{{ ex.label }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Theory (equations) -->
+    <h2>Basics</h2>
+    <ul>
+      <li><b>Crop</b> — interactive crop using <code>Cropper.js</code>.</li>
+      <li><b>Flip H/V</b> — horizontal mirror or vertical flip.</li>
+      <li><b>Rotate ±90°</b> — fast orthogonal rotation. <i>Advanced</i> allows arbitrary degrees (bicubic resample).</li>
+      <li><b>Resize</b> — <code>contain()</code> keeps aspect. Resamplers:
+        <ul>
+          <li>Nearest, Bilinear, Bicubic, Lanczos</li>
+        </ul>
+        <details>
+          <summary>Key formulas</summary>
+          <pre>
+Bilinear (1D):  f(x) ≈ (1−t)·f(⌊x⌋) + t·f(⌈x⌉),  t = x − ⌊x⌋
+
+Lanczos (a = 3):
+  L(x) = sinc(x) · sinc(x/a)   for |x| < a,  else 0
+  sinc(x) = sin(πx)/(πx)
+          </pre>
+        </details>
+      </li>
+      <li><b>Convert</b> — re-encode pixels to PNG/JPEG/WebP/BMP/TIFF.</li>
+      <li><b>Rename</b> — changes the filename used for downloads.</li>
+    </ul>
+
+    <h2>Adjust</h2>
+    <ul>
+      <li><b>Brightness</b>
+        <pre>I' = α · I</pre>
+      </li>
+      <li><b>Contrast</b>
+        <pre>I' = α · (I − 128) + 128</pre>
+      </li>
+      <li><b>Saturation</b> — increases colorfulness (via Pillow’s <code>Color</code> enhancer).</li>
+      <li><b>Gamma</b>
+        <pre>I' = 255 · (I / 255)^(1/γ)</pre>
+      </li>
+    </ul>
+
+    <h2>Filters</h2>
+    <ul>
+      <li><b>Gaussian blur</b>
+        <pre>G(x, y) = (1 / (2πσ²)) · e^{ -(x² + y²) / (2σ²) }</pre>
+      </li>
+      <li><b>Median</b> — median of an odd-sized neighborhood.</li>
+      <li><b>Unsharp mask</b>
+        <pre>I_sharp = I + k · (I − G_σ(I))</pre>
+      </li>
+      <li><b>Edges (Sobel)</b>
+        <pre>
+Sx = [ [-1 0 1], [-2 0 2], [-1 0 1] ]
+Sy = [ [-1 -2 -1], [ 0  0  0], [ 1  2  1] ]
+|∇I| = sqrt( (I * Sx)² + (I * Sy)² )
+        </pre>
+      </li>
+      <li><b>Posterize</b>
+        <pre>q = floor( I / (256 / 2^b) ) · (256 / 2^b)</pre>
+      </li>
+    </ul>
+
+    <h2>Advanced</h2>
+    <ul>
+      <li><b>Histogram Equalization</b>
+        <pre>I' = round( (CDF(I) − CDF_min) / (1 − CDF_min) · 255 )</pre>
+      </li>
+      <li><b>Background Removal</b>
+        <pre>d(p,b) = || p − b ||₂
+Alpha(p) = 0   if d(p,b) < τ,  else keep</pre>
+      </li>
+      <li><b>Seam Carving</b> — backend: <code>{{ seam_backend }}</code>
+        <pre>
+Energy:  e(i,j) = |∂I/∂x|(i,j) + |∂I/∂y|(i,j)
+
+DP:
+  M(i,j) = e(i,j) + min( M(i-1,j-1), M(i-1,j), M(i-1,j+1) )
+
+Backtrack from argmin_j M(h-1, j) to obtain the minimal seam.
+        </pre>
+      </li>
+    </ul>
+  </main>
+</body>
+</html>

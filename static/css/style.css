@@ -1,123 +1,78 @@
-body {
-    font-family: Arial, sans-serif;
-    text-align: center;
+:root{
+  --bg:#0b0e14; --surface:#0f141c; --ink:#e6edf3; --muted:#9aa9b8;
+  --brand:#7c5cff; --brand2:#22c55e; --border:#1e2633; --elev:0 12px 30px rgba(0,0,0,.35);
 }
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,Segoe UI,Inter,Roboto,Helvetica,Arial,sans-serif}
+a.link{color:var(--ink);text-decoration:none}
+a.link:hover{opacity:.85}
+input,button,select,details{font:inherit}
 
-header {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 0;
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.brand{font-weight:800;letter-spacing:.3px;display:flex;gap:10px;align-items:center}
+.filename{opacity:.75;font-weight:600}
+.nav{display:flex;gap:14px}
+.actions{display:flex;gap:8px;align-items:center}
+.file-btn span, .primary, button, .ghost{border:1px solid var(--border);background:var(--surface);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+.primary{background:var(--brand);border-color:transparent}
+.primary:hover{filter:brightness(1.05)}
+.ghost{opacity:.8}
+.select{background:var(--surface);border:1px solid var(--border);color:var(--ink);padding:6px 8px;border-radius:8px}
+.num{width:88px;background:var(--surface);border:1px solid var(--border);color:var(--ink);padding:6px 8px;border-radius:8px}
+.sep{width:1px;height:26px;background:var(--border);margin:0 6px}
+.label{font-size:12px;color:var(--muted);margin-left:6px;margin-right:4px}
+
+.wrap{display:grid;grid-template-columns:1fr 420px;gap:16px;max-width:1200px;margin:16px auto;padding:0 12px}
+.left{display:flex;flex-direction:column;gap:12px}
+.right{position:sticky;top:62px;height:calc(100vh - 80px);overflow:auto}
+
+.stage{position:relative;background:radial-gradient(600px 400px at 70% 20%,#111a2a,var(--surface));border:1px solid var(--border);border-radius:12px;min-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#canvas{max-width:100%;max-height:80vh;display:block}
+#dropHint{position:absolute;color:var(--muted);font-size:14px;opacity:.8;pointer-events:none}
+#dropZone.drag{outline:2px dashed var(--brand);outline-offset:-8px}
+
+.info{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px}
+.exif{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px}
+.exif summary{cursor:pointer}
+.exif pre{white-space:pre-wrap;font-size:12px;color:var(--muted)}
+
+/* History box on the LEFT column */
+.history-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px}
+.history{display:flex;flex-direction:column;gap:8px}
+.hist{display:flex;justify-content:space-between;align-items:center;background:#101725;border:1px solid var(--border);border-radius:10px;padding:6px 10px}
+.hist span{font-size:13px;opacity:.95}
+.hist button{padding:6px 10px;border-radius:8px}
+
+/* Tabs (top of RIGHT column) */
+.tabs{display:flex;gap:8px;margin:0 0 10px}
+.tab{background:transparent;border:1px solid var(--border);padding:8px 14px;border-radius:999px;cursor:pointer}
+.tab.active{background:var(--brand)}
+.tab:hover{background:#6848ff}
+
+/* Tool panel shell (RIGHT column) */
+.tool-panels{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}
+
+/* Panels: only the active one shows */
+.panel{display:none}
+.panel.show{display:block}
+
+.group{padding:10px 8px;border-bottom:1px solid var(--border)}
+.group:last-child{border-bottom:none}
+.group-title{font-weight:700;margin-bottom:8px;opacity:.85}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:#151c29;border:1px solid var(--border);padding:8px 12px;border-radius:10px;cursor:pointer}
+.btn:hover{filter:brightness(1.06)}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:10px;width:100%}
+.chk{display:flex;align-items:center;gap:6px}
+.full{grid-column:1 / -1}
+.advanced summary{cursor:pointer}
+.flex{flex:1}
+.muted{color:var(--muted);font-size:12px}
+
+/* Mobile */
+@media (max-width: 980px){
+  .wrap{grid-template-columns:1fr}
+  .right{position:static;height:auto}
+  .stage{min-height:320px}
 }
-
-#manipulation-controls button {
-    margin: 10px;
-    padding: 5px 15px;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-#image-display {
-    margin-top: 20px;
-}
-
-#previewContainer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-}
-
-#previewSection {
-    text-align: center;
-}
-
-#imagePreview {
-    max-width: 100%;
-    max-height: 800px;
-    display: block; /* Adjust as needed */
-}
-
-#manipulationSection {
-    text-align: center;
-    margin-top: 20px;
-}
-
-#cutButton {
-    margin-top: 10px; /* Adds space between the image and the button */
-}
-/* Ensure the convert section is centered as well */
-#convertSection {
-    text-align: center;
-    margin-top: 20px;
-}
-
-/* Add styles for the save button and other elements as needed */
-
-#actions {
-    display: flex;
-    flex-direction: column;
-    margin-left: 20px;
-}
-
-/* Additional styles for buttons and other elements */
-
-.resizable-container {
-    display: inline-block;
-    position: relative;
-}
-
-.resizable {
-    resize: both;
-    overflow: auto;
-}
-
-#imageContainer {
-    resize: both;
-    overflow: auto;
-    max-width: 100%;
-    max-height: 80vh; /* Adjust as needed */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#imagePreview {
-    max-width: 100%;
-    max-height: 100%;
-}
-
-
-.resizable {
-    position: relative;
-    /* Other styles... */
-}
-
-#resizeHandle {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 20px; /* Adjust size as needed */
-    height: 20px; /* Adjust size as needed */
-    background: #000; /* Choose a color that stands out */
-    cursor: nwse-resize; /* This cursor indicates resizing */
-    display: none; /* Hide the handle initially */
-}
-
-#seamCarveSlider {
-    display: none; /* Slider is hidden initially */
-    width: 80%; /* Adjust the width as needed */
-    margin: 10px auto; /* Center the slider */
-}
-
-#currentWidth {
-    display: inline-block;
-    margin-left: 10px;
-    width: 50px; /* Adjust as needed */
-}
-
-#rotateInput {
-    margin-top: 10px; /* Adjust spacing as needed */
-    /* Additional styling */
-}
-
-

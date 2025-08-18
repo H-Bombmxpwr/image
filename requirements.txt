@@ -1,4 +1,20 @@
-Flask==2.2.2
-numpy==1.24.1
-Pillow==10.2.0
-seam_carving==1.1.0
+# --- Web ---
+Flask==3.0.3
+Werkzeug==3.0.3
+itsdangerous==2.2.0
+Jinja2==3.1.4
+MarkupSafe==2.1.5
+
+# --- Imaging core ---
+Pillow==10.4.0
+
+# --- Numeric stack (wheels available for Py 3.12) ---
+numpy==2.0.2
+scipy==1.13.1
+
+# --- Seam carving backends ---
+# Primary backend used by the app:
+seam-carving>=0.1.2
+
+# Fallback backend (app will auto-use if seam-carving is missing or fails):
+scikit-image==0.24.0
