@@ -3,136 +3,247 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Image Lab — Help</title>
+  <title>Image Lab — Help & Reference</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <!-- MathJax for LaTeX rendering -->
+  <script>
+    window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
+  </script>
+  <script id="MathJax-script" async
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
   <style>
-    .doc {max-width: 980px; margin: 24px auto; padding: 0 16px;}
+    .doc {max-width: 1100px; margin: 24px auto; padding: 0 16px;}
     .doc h1{margin:0 0 8px}
     .doc h2{margin-top:28px}
-    .doc code{background:rgba(255,255,255,.06); padding:.1rem .35rem; border-radius:.35rem}
-    .doc pre{background:rgba(255,255,255,.06); padding:.75rem; border-radius:.5rem; overflow:auto}
-    .doc .note{color:var(--muted)}
-    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin:14px 0 26px}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px}
-    .card img{width:100%;display:block;border-radius:8px}
-    .card .cap{margin-top:6px;font-size:13px;color:var(--muted)}
-    .hero{display:flex;gap:16px;align-items:flex-start;margin:14px 0 8px}
-    .hero img{width:260px;border-radius:12px;border:1px solid var(--border)}
-    .hero .meta{color:var(--muted);font-size:13px}
+    .note{color:var(--muted)}
+    .section{margin-top:22px}
+    .split{display:grid; grid-template-columns: 1.1fr 1fr; gap:18px}
+    .eq-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px}
+    .eq-card h3{margin:0 0 6px}
+    .grid {display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-top:12px}
+    figure {background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:8px}
+    figure img{width:100%; height:auto; display:block; border-radius:8px}
+    figure figcaption{font-size:13px; color:var(--muted); margin-top:6px}
+    .hero img{max-width:100%; border-radius:12px}
+    .topbar .link{opacity:.85}
+    .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
   </style>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><a class="link" href="{{ url_for('index') }}">← Back</a></div>
+    <div class="brand"><a class="link" href="{{ url_for('index') }}">← Back to Editor</a></div>
     <div class="actions"></div>
   </header>
 
   <main class="doc">
-    <h1>Help & Reference</h1>
-    <p class="note">This page explains each tool, how it works, and shows examples derived from <code>static/images/memory.jpg</code>.</p>
+    <h1>Image Lab — Help & Reference</h1>
+    <p class="note">
+      Examples are pre-rendered from <span class="kbd">static/images/memory.jpg</span> using
+      <span class="kbd">src/helper.py</span>. To refresh them, re-run that script.
+    </p>
 
-    <!-- Hero / original -->
-    <section class="hero">
-      <img src="{{ memory_url }}" alt="Original sample">
-      <div>
-        <b>Original sample</b>
-        <div class="meta">Shown as the basis for the gallery below.</div>
+    <!-- Original -->
+    <section class="section hero">
+      <h2>Original</h2>
+      <img src="{{ url_for('static', filename='images/help/00_original.png') }}" alt="original image">
+    </section>
+
+    <!-- Basic Transforms -->
+    <section class="section">
+      <div class="split">
+        <div class="eq-card">
+          <h3>Basic Transforms</h3>
+          <p><b>Rotate ±90°</b> uses orthogonal rotation (no resampling blur). Arbitrary rotation uses bicubic resampling.</p>
+          <p><b>Flip H/V</b> mirrors pixels about the vertical or horizontal axis.</p>
+          <p><b>Resize</b> uses interpolation kernels:
+            <i>Nearest</i>, <i>Bilinear</i>, <i>Bicubic</i>, <i>Lanczos</i> (windowed sinc).
+          </p>
+        </div>
+        <div class="eq-card">
+          <h3>Resize Kernels</h3>
+          <p><b>Bilinear:</b> $I'(x)= \\sum w_i I_i$ (linear weights)</p>
+          <p><b>Bicubic:</b> cubic weighting in 4×4 neighborhood.</p>
+          <p><b>Lanczos:</b> $\\text{Lanczos}_a(x)=\\text{sinc}(x)\\,\\text{sinc}(x/a)$ for $|x|<a$.</p>
+        </div>
+      </div>
+      <div class="grid">
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/14_rotate_90.png') }}" alt="rotate +90">
+          <figcaption><b>Rotate +90°</b> — orthogonal rotation, expand canvas.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/15_flip_h.png') }}" alt="flip h">
+          <figcaption><b>Flip Horizontal</b> — mirror across vertical axis.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/16_resize_half.png') }}" alt="resize 50%">
+          <figcaption><b>Resize 50%</b> — contain to 50% on longest edge, Lanczos.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/17_resize_double.png') }}" alt="resize 200%">
+          <figcaption><b>Resize 200%</b> — Lanczos upsample (high quality).</figcaption>
+        </figure>
       </div>
     </section>
 
-    <!-- Example gallery -->
-    <section>
-      <h2>Worked Examples</h2>
-      <div class="gallery">
-        {% for ex in examples %}
-          <div class="card">
-            <img src="{{ ex.img }}" alt="{{ ex.label }}">
-            <div class="cap">{{ ex.label }}</div>
-          </div>
-        {% endfor %}
+    <!-- Tone & Color -->
+    <section class="section">
+      <div class="split">
+        <div class="eq-card">
+          <h3>Tone & Color Adjustments</h3>
+          <ul>
+            <li><b>Brightness</b>: $I' = a\\,I$</li>
+            <li><b>Contrast</b>: $I' = a\\,(I - 128) + 128$</li>
+            <li><b>Saturation</b>: scales chroma (implemented via Pillow’s <i>Color</i> enhancer)</li>
+            <li><b>Gamma</b>: $I' = 255\\,(I/255)^{1/\\gamma}$</li>
+          </ul>
+        </div>
+        <div class="eq-card">
+          <h3>Example Parameters</h3>
+          <p>Brightness ×1.20, Contrast ×1.15, Saturation ×1.10, $\\gamma=0.9$</p>
+        </div>
+      </div>
+      <div class="grid">
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/18_adjust_b+20_c+15_s+10_g0_9.png') }}" alt="adjust bcs gamma">
+          <figcaption>
+            <b>Adjust</b> — B×1.20, C×1.15, S×1.10, $\\gamma=0.9$.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/01_grayscale.png') }}" alt="grayscale">
+          <figcaption><b>Grayscale</b> — luminance only.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/02_sepia.png') }}" alt="sepia">
+          <figcaption><b>Sepia</b> — colorize grayscale: low=(20,10,0), high=(255,240,192).</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/03_invert.png') }}" alt="invert">
+          <figcaption><b>Invert</b> — $I' = 255 - I$.</figcaption>
+        </figure>
       </div>
     </section>
 
-    <!-- Theory (equations) -->
-    <h2>Basics</h2>
-    <ul>
-      <li><b>Crop</b> — interactive crop using <code>Cropper.js</code>.</li>
-      <li><b>Flip H/V</b> — horizontal mirror or vertical flip.</li>
-      <li><b>Rotate ±90°</b> — fast orthogonal rotation. <i>Advanced</i> allows arbitrary degrees (bicubic resample).</li>
-      <li><b>Resize</b> — <code>contain()</code> keeps aspect. Resamplers:
-        <ul>
-          <li>Nearest, Bilinear, Bicubic, Lanczos</li>
-        </ul>
-        <details>
-          <summary>Key formulas</summary>
-          <pre>
-Bilinear (1D):  f(x) ≈ (1−t)·f(⌊x⌋) + t·f(⌈x⌉),  t = x − ⌊x⌋
+    <!-- Filters -->
+    <section class="section">
+      <div class="split">
+        <div class="eq-card">
+          <h3>Filters</h3>
+          <p><b>Gaussian Blur</b> (radius $\\sigma$):</p>
+          <p style="margin-left:8px;">$G(x,y) = \\dfrac{1}{2\\pi\\sigma^2} e^{-\\frac{x^2+y^2}{2\\sigma^2}}$</p>
+          <p><b>Median</b> (odd window size): replaces each pixel with the median of its neighborhood.</p>
+          <p><b>Unsharp Mask</b>: $I' = I + k\\,(I - G_{\\sigma}(I))$</p>
+          <p><b>Sobel Edges</b>: $|\\nabla I| = \\sqrt{(I * S_x)^2 + (I * S_y)^2}$</p>
+          <p><b>Emboss</b>: directional high-pass convolution (relief effect).</p>
+          <p><b>Posterize</b>: quantize to $b$ bits/channel ($2^b$ levels).</p>
+          <p><b>Pixelate</b>: downsample to blocks, upsample with nearest neighbor.</p>
+        </div>
+        <div class="eq-card">
+          <h3>Parameters Used in Examples</h3>
+          <ul>
+            <li>Gaussian: $\\sigma=1.5$ and $\\sigma=3.0$</li>
+            <li>Median: size 3×3</li>
+            <li>Unsharp: radius 2.0, amount 150%, threshold 3</li>
+            <li>Posterize: 4 bits/channel</li>
+            <li>Pixelate: block size 8 px</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid">
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/04_gaussian_1_5.png') }}" alt="gaussian 1.5">
+          <figcaption><b>Gaussian blur</b> — $\\sigma=1.5$ px.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/05_gaussian_3.png') }}" alt="gaussian 3">
+          <figcaption><b>Gaussian blur</b> — $\\sigma=3.0$ px.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/06_median_3.png') }}" alt="median 3">
+          <figcaption><b>Median</b> — size 3×3.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/07_sharpen.png') }}" alt="unsharp">
+          <figcaption><b>Unsharp Mask</b> — radius 2.0, amount 150%, threshold 3.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/08_edges.png') }}" alt="edges">
+          <figcaption><b>Edges</b> — Sobel magnitude.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/09_emboss.png') }}" alt="emboss">
+          <figcaption><b>Emboss</b> — directional high-pass.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/10_posterize_4bits.png') }}" alt="posterize 4">
+          <figcaption><b>Posterize</b> — 4 bits/channel (16 levels).</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/11_pixelate_8px.png') }}" alt="pixelate 8">
+          <figcaption><b>Pixelate</b> — block size 8 px (nearest upsample).</figcaption>
+        </figure>
+      </div>
+    </section>
 
-Lanczos (a = 3):
-  L(x) = sinc(x) · sinc(x/a)   for |x| < a,  else 0
-  sinc(x) = sin(πx)/(πx)
-          </pre>
-        </details>
-      </li>
-      <li><b>Convert</b> — re-encode pixels to PNG/JPEG/WebP/BMP/TIFF.</li>
-      <li><b>Rename</b> — changes the filename used for downloads.</li>
-    </ul>
+    <!-- Histogram Equalization & Background Removal -->
+    <section class="section">
+      <div class="split">
+        <div class="eq-card">
+          <h3>Histogram Equalization</h3>
+          <p>Compute luminance CDF $C(i)=\\sum_{j\\le i} h(j)$ and map with</p>
+          <p style="margin-left:8px;">$I' = \\text{round}\\left( \\dfrac{C(I)-C_{\\min}}{(W\\cdot H) - C_{\\min}} \\cdot (L-1) \\right)$</p>
+          <p>spreading intensities across levels $L$.</p>
+        </div>
+        <div class="eq-card">
+          <h3>Background Removal</h3>
+          <p>Estimate border mean color $\\mu$; remove pixels with</p>
+          <p style="margin-left:8px;">$\\lVert I(x)-\\mu \\rVert_2 &lt; T$</p>
+          <p>where $T$ is set by tolerance (here: 18%).</p>
+        </div>
+      </div>
+      <div class="grid">
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/12_hist_eq.png') }}" alt="hist eq">
+          <figcaption><b>Histogram Equalization</b> — luminance channel equalized.</figcaption>
+        </figure>
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/13_background_remove.png') }}" alt="bg remove">
+          <figcaption><b>Background Removal</b> — tolerance 18%, border-mean color keying (RGBA output).</figcaption>
+        </figure>
+      </div>
+    </section>
 
-    <h2>Adjust</h2>
-    <ul>
-      <li><b>Brightness</b>
-        <pre>I' = α · I</pre>
-      </li>
-      <li><b>Contrast</b>
-        <pre>I' = α · (I − 128) + 128</pre>
-      </li>
-      <li><b>Saturation</b> — increases colorfulness (via Pillow’s <code>Color</code> enhancer).</li>
-      <li><b>Gamma</b>
-        <pre>I' = 255 · (I / 255)^(1/γ)</pre>
-      </li>
-    </ul>
-
-    <h2>Filters</h2>
-    <ul>
-      <li><b>Gaussian blur</b>
-        <pre>G(x, y) = (1 / (2πσ²)) · e^{ -(x² + y²) / (2σ²) }</pre>
-      </li>
-      <li><b>Median</b> — median of an odd-sized neighborhood.</li>
-      <li><b>Unsharp mask</b>
-        <pre>I_sharp = I + k · (I − G_σ(I))</pre>
-      </li>
-      <li><b>Edges (Sobel)</b>
-        <pre>
-Sx = [ [-1 0 1], [-2 0 2], [-1 0 1] ]
-Sy = [ [-1 -2 -1], [ 0  0  0], [ 1  2  1] ]
-|∇I| = sqrt( (I * Sx)² + (I * Sy)² )
-        </pre>
-      </li>
-      <li><b>Posterize</b>
-        <pre>q = floor( I / (256 / 2^b) ) · (256 / 2^b)</pre>
-      </li>
-    </ul>
-
-    <h2>Advanced</h2>
-    <ul>
-      <li><b>Histogram Equalization</b>
-        <pre>I' = round( (CDF(I) − CDF_min) / (1 − CDF_min) · 255 )</pre>
-      </li>
-      <li><b>Background Removal</b>
-        <pre>d(p,b) = || p − b ||₂
-Alpha(p) = 0   if d(p,b) < τ,  else keep</pre>
-      </li>
-      <li><b>Seam Carving</b> — backend: <code>{{ seam_backend }}</code>
-        <pre>
-Energy:  e(i,j) = |∂I/∂x|(i,j) + |∂I/∂y|(i,j)
-
-DP:
-  M(i,j) = e(i,j) + min( M(i-1,j-1), M(i-1,j), M(i-1,j+1) )
-
-Backtrack from argmin_j M(h-1, j) to obtain the minimal seam.
-        </pre>
-      </li>
-    </ul>
+    <!-- Seam Carving -->
+    <section class="section">
+      <div class="split">
+        <div class="eq-card">
+          <h3>Seam Carving</h3>
+          <p>Compute an energy map, e.g. gradient magnitude $E=|\\nabla I|$, then find a connected seam of minimum cumulative energy with dynamic programming:</p>
+          <p style="margin-left:8px;">$M(i,j) = E(i,j) + \\min\\{ M(i-1,j-1),\\ M(i-1,j),\\ M(i-1,j+1) \\}$</p>
+          <p>Remove (or insert) low-energy seams to change dimensions while preserving salient content.</p>
+        </div>
+        <div class="eq-card">
+          <h3>Backend</h3>
+          <p>Using backend: <b>{{ seam_backend }}</b>{% if not has_seam %} (seam-carving not installed; example uses Lanczos fallback){% endif %}.</p>
+        </div>
+      </div>
+      <div class="grid">
+        {% if has_seam %}
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/19_seamcarve_w70.png') }}" alt="seam carve">
+          <figcaption><b>Seam Carve</b> — target width = 70% of original (width-first, backward energy).</figcaption>
+        </figure>
+        {% else %}
+        <figure>
+          <img src="{{ url_for('static', filename='images/help/19_resize_w70_lanczos.png') }}" alt="resize w70 fallback">
+          <figcaption><b>Resize (fallback)</b> — width = 70% with Lanczos (no seam-carving available).</figcaption>
+        </figure>
+        {% endif %}
+      </div>
+    </section>
   </main>
 </body>
 </html>

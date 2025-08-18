@@ -176,7 +176,8 @@ def api_resize():
     keep_aspect = bool(d.get("keep_aspect", True))
     resamp = _resample(d.get("method"))
     if keep_aspect:
-        out = ImageOps.contain(img, (w, h), method=resamp)  # Pillow>=10 keyword is "method"
+        # Pillow>=10 uses "method" (older versions accepted "resample")
+        out = ImageOps.contain(img, (w, h), method=resamp)
     else:
         out = img.resize((w, h), resample=resamp)
     return jsonify({"img": _image_to_dataurl(out)})
@@ -273,21 +274,28 @@ def api_seam_carve():
     img = _b64_to_image(d["image"]).convert("RGB")
     target_w = int(d.get("target_width", img.width))
     target_h = int(d.get("target_height", img.height))
+
     if SEAM_BACKEND == "seam-carving":
         dst = seam_carving.resize(np.array(img), (target_w, target_h),
                                   energy_mode=d.get("energy_mode", "backward"),
                                   order=d.get("order", "width-first"))
         out = Image.fromarray(dst)
+        return jsonify({"img": _image_to_dataurl(out)})
+
+    # scikit-image fallback: supports removing seams; for enlarging, use high-quality resize
+    from skimage import transform, filters, color, img_as_ubyte
+    arr = np.array(img) / 255.0
+    gray = color.rgb2gray(arr)
+    energy = filters.sobel(gray)
+
+    if target_w < img.width:
+        num = img.width - target_w
+        carved = transform.seam_carve(arr, energy, 'vertical', num)
+        out = Image.fromarray(img_as_ubyte(carved))
+        return jsonify({"img": _image_to_dataurl(out)})
     else:
-        # scikit-image fallback
-        from skimage import transform, filters, color, img_as_ubyte
-        gray = color.rgb2gray(np.array(img))
-        energy = filters.sobel(gray)
-        # width-first adjust (common case)
-        out_arr = transform.seam_carve(np.array(img)/255.0, energy, 'vertical',
-                                       img.width - target_w) if target_w < img.width else transform.seam_carve(np.array(img)/255.0, energy, 'vertical', img.width - target_w)
-        out = Image.fromarray(img_as_ubyte(out_arr))
-    return jsonify({"img": _image_to_dataurl(out)})
+        out = img.resize((target_w, target_h), Resampling.LANCZOS)
+        return jsonify({"img": _image_to_dataurl(out)})
 
 @app.post("/api/export")
 def api_export():

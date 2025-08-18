@@ -11,11 +11,48 @@ const drop = document.getElementById('dropZone');
 const hint = document.getElementById('dropHint');
 const fileNameEl = document.getElementById('fileName');
 
+/* ========== Persistence ========== */
+const STORE_KEY = 'imagelab-session-v1';
+
+function saveState() {
+  try {
+    if (!CURRENT) return;
+    const payload = {
+      CURRENT,
+      ORIGINAL,
+      FILE_NAME,
+      HISTORY
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s || !s.CURRENT) return false;
+    CURRENT = s.CURRENT;
+    ORIGINAL = s.ORIGINAL || s.CURRENT;
+    FILE_NAME = s.FILE_NAME || 'untitled';
+    HISTORY = Array.isArray(s.HISTORY) && s.HISTORY.length ? s.HISTORY : [{ label: `Opened "${FILE_NAME}"`, snapshot: CURRENT }];
+    hint.style.display = 'none';
+    setFileName(FILE_NAME);
+    loadDataURLToCanvas(CURRENT);
+    renderHistory();
+    return true;
+  } catch { return false; }
+}
+
 /* ========== Utilities ========== */
 function setFileName(name){
   FILE_NAME = (name || 'untitled').replace(/[\\/:*?"<>|]/g, '_');
-  fileNameEl.textContent = FILE_NAME;
+  const fileNameEl = document.getElementById('fileName');
+  if (fileNameEl) fileNameEl.textContent = FILE_NAME;
 }
+
+
 
 function setCanvasFromImage(img){
   const maxW = drop.clientWidth - 20;
@@ -46,6 +83,7 @@ function pushHistory(label){
   if(!CURRENT) return;
   HISTORY.push({ label, snapshot: CURRENT });
   renderHistory();
+  saveState();
 }
 
 function renderHistory(){
@@ -62,6 +100,7 @@ function renderHistory(){
       HISTORY = HISTORY.slice(0, i+1);
       renderHistory();
       await refreshInspect();
+      saveState();
     });
     list.appendChild(row);
   });
@@ -82,7 +121,7 @@ function updateInfo(meta, exif){
   // Seam slider range + label
   const seam = document.getElementById('seamSlider');
   const seamW = document.getElementById('seamW');
-  if(seam){
+  if(seam && seamW){
     seam.min = Math.max(10, Math.floor(meta.width * 0.25));
     seam.max = Math.floor(meta.width * 1.5);
     seam.value = meta.width;
@@ -108,6 +147,7 @@ async function openFile(file){
   HISTORY = [{ label: `Opened "${FILE_NAME}"`, snapshot: CURRENT }];
   renderHistory();
   await refreshInspect();
+  saveState();
 }
 
 document.getElementById('fileInput').addEventListener('change', (e)=>{
@@ -161,7 +201,8 @@ document.querySelectorAll('.tab').forEach(btn=>{
     document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
     btn.classList.add('active');
-    document.getElementById('panel-' + btn.dataset.panel).classList.add('show');
+    const target = document.getElementById('panel-' + btn.dataset.panel);
+    if (target) target.classList.add('show');
   });
 });
 
@@ -236,7 +277,7 @@ document.getElementById('btnAdjust').addEventListener('click', async ()=>{
 
   const pct = x => ((x-1)>=0?'+':'') + Math.round((x-1)*100) + '%';
   const gtxt = g===1 ? '' : ` γ${g.toFixed(2)}`;
-  pushHistory(`Adjust: B${pct(b)} / C${pct(c)} / S${pct(s)}${gtxt}`);
+  pushHistory(`Adjust: Brightness ${pct(b)} / Contrast ${pct(c)} / Saturation ${pct(s)}${gtxt}`);
 });
 
 /* ========== Filters ========== */
@@ -290,28 +331,60 @@ document.getElementById('btnBgRemove').addEventListener('click', async ()=>{
   pushHistory(`Background remove (tol ${tol})`);
 });
 
-/* Seam carving live */
+/* Seam carving live (debounced). Only push 1 history entry on release. */
+/* ========== Seam carving live ========== */
 let seamTimer = null;
 let seamReqId = 0;
+let seamLastCommitted = null; // width value last committed to history
 const seamSlider = document.getElementById('seamSlider');
-const seamLbl = document.getElementById('seamW');
-if(seamSlider){
+const seamLbl    = document.getElementById('seamW');
+const seamBusy   = document.getElementById('seamBusy');
+
+if (seamSlider && seamLbl) {
+  const setBusy = (on) => {
+    if (!seamBusy) return;
+    seamBusy.classList.toggle('hidden', !on);
+    seamSlider.disabled = !!on;
+  };
+
   const runSeam = async () => {
-    if(!CURRENT) return;
-    const target = parseInt(seamSlider.value);
+    if (!CURRENT) return;
+    const target = parseInt(seamSlider.value, 10);
     seamLbl.textContent = `${target} px`;
     const myId = ++seamReqId;
-    try{
-      const j = await postJSON('/api/seam_carve', { image: CURRENT, target_width: target, order:'width-first', energy_mode:'backward' });
-      if(myId !== seamReqId) return; // ignore stale
-      CURRENT = j.img; loadDataURLToCanvas(CURRENT); await refreshInspect();
-      pushHistory(`Seam carve width → ${target}px`);
-    }catch(e){
+    setBusy(true);
+    try {
+      const j = await postJSON('/api/seam_carve', {
+        image: CURRENT,
+        target_width: target,
+        order:'width-first',
+        energy_mode:'backward'
+      });
+      if (myId !== seamReqId) return; // stale response
+      CURRENT = j.img;
+      loadDataURLToCanvas(CURRENT);
+      await refreshInspect();
+    } catch (e) {
       console.warn('Seam carve failed', e);
+    } finally {
+      if (myId === seamReqId) setBusy(false);
     }
   };
-  const debounced = ()=>{ clearTimeout(seamTimer); seamTimer = setTimeout(runSeam, 250); };
+
+  const debounced = () => { clearTimeout(seamTimer); seamTimer = setTimeout(runSeam, 250); };
   seamSlider.addEventListener('input', debounced);
+
+  // Commit a single, descriptive history entry when the user finishes dragging.
+  const commit = async () => {
+    const target = parseInt(seamSlider.value, 10);
+    if (seamLastCommitted !== target && CURRENT) {
+      pushHistory(`Seam carve width → ${target}px`);
+      seamLastCommitted = target;
+    }
+  };
+  seamSlider.addEventListener('change', commit);
+  seamSlider.addEventListener('mouseup', commit);
+  seamSlider.addEventListener('touchend', commit);
 }
 
 /* ========== Cropper modal ========== */
@@ -361,11 +434,18 @@ document.getElementById('btnCopy').addEventListener('click', async ()=>{
 });
 
 /* ========== Boot ========== */
-/* Seed with a checkerboard preview so stage isn’t empty but ORIGINAL stays null */
-(function boot(){
-  const p = document.createElement('canvas'); p.width = p.height = 32;
-  const g = p.getContext('2d'); g.fillStyle='#ddd'; g.fillRect(0,0,32,32);
-  g.fillStyle='#bbb'; g.fillRect(0,0,16,16); g.fillRect(16,16,16,16);
-  CURRENT = p.toDataURL('image/png'); loadDataURLToCanvas(CURRENT); refreshInspect();
-  setFileName('untitled');
+/* Restore session if available; otherwise seed checkerboard preview
+   (ORIGINAL stays null so we still prompt on overwrite). */
+(async function boot(){
+  const restored = loadState();
+  if (!restored) {
+    const p = document.createElement('canvas'); p.width = p.height = 32;
+    const g = p.getContext('2d'); g.fillStyle='#ddd'; g.fillRect(0,0,32,32);
+    g.fillStyle='#bbb'; g.fillRect(0,0,16,16); g.fillRect(16,16,16,16);
+    CURRENT = p.toDataURL('image/png'); loadDataURLToCanvas(CURRENT); refreshInspect();
+    setFileName('untitled');
+  }
 })();
+
+/* Save on unload just in case */
+window.addEventListener('beforeunload', saveState);

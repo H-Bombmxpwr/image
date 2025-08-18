@@ -9,22 +9,22 @@
 </head>
 <body>
 
-  <header class="topbar">
-    <div class="brand">
-      <span>Image Lab</span>
-      <span class="filename" id="fileName">untitled</span>
-    </div>
-    <nav class="nav">
-      <a href="{{ url_for('help_page') }}" class="link">Help</a>
-    </nav>
-    <div class="actions">
-      <label class="file-btn">
-        <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
-        <span>Open Image</span>
-      </label>
-      <button id="btnPaste" class="ghost">Paste</button>
-      <div class="sep"></div>
-      <label class="label">Export as</label>
+    <header class="topbar">
+  <div class="leftslot">
+    <div class="brand">Image Lab</div>
+    <span class="muted">Name: <b id="fileName">untitled</b></span>
+    <a id="helpLink" class="ghost" href="{{ url_for('help_page') }}" target="_blank" rel="noopener">Help</a>
+  </div>
+
+  <div class="actions">
+    <label class="file-btn">
+      <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
+      <span>Open Image</span>
+    </label>
+    <button id="btnPaste" class="ghost">Paste</button>
+
+    <div class="sep"></div>
+    <label>Export format
       <select id="exportFormat" class="select">
         <option value="png">PNG</option>
         <option value="jpeg">JPEG</option>
@@ -32,12 +32,13 @@
         <option value="bmp">BMP</option>
         <option value="tiff">TIFF</option>
       </select>
-      <label class="label">Quality</label>
-      <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="Export quality (1–100)" />
-      <button id="btnCopy" class="ghost">Copy</button>
-      <button id="btnDownload" class="primary">Download</button>
-    </div>
-  </header>
+    </label>
+    <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="quality" />
+    <button id="btnCopy" class="ghost">Copy</button>
+    <button id="btnDownload" class="primary">Download</button>
+  </div>
+</header>
+
 
   <main class="wrap">
     <!-- LEFT: preview + info + exif + history -->
@@ -206,15 +207,17 @@
           </div>
 
           <div class="group">
-            <div class="group-title">Seam Carving (live)</div>
-            <div class="row">
-              {% if has_seam %}
-                <input id="seamSlider" type="range" min="10" max="2000" value="400" class="flex">
-                <span id="seamW" class="muted">— px</span>
-              {% else %}
-                <em class="muted">seam-carving backend not installed</em>
-              {% endif %}
-            </div>
+            <div class="group-title">Seam Carving</div>
+                <div class="row">
+                    <label>Seam Carving (width only)</label>
+                    {% if has_seam %}
+                        <input id="seamSlider" type="range" min="10" max="2000" value="400" style="width:220px">
+                        <span id="seamW" class="muted">— px</span>
+                        <span id="seamBusy" class="spinner hidden" aria-label="processing"></span>
+                    {% else %}
+                        <em class="muted">seam-carving Python package not installed</em>
+                    {% endif %}
+                </div>
           </div>
         </div>
       </div>
