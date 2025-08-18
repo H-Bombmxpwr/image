@@ -96,3 +96,12 @@ input,button,select,details{font:inherit}
   background: rgba(0,0,0,.55);
   color: #fff; font-size: 18px; z-index: 9999;
 }
+
+
+/* Small checkerboard when no image is loaded */
+.stage.checker {
+  background:
+    conic-gradient(#2b3346 25%, #232a3a 0 50%, #2b3346 0 75%, #232a3a 0) 0 0 / 12px 12px,
+    radial-gradient(600px 400px at 70% 20%, #111a2a, var(--surface));
+}
+

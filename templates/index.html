@@ -11,36 +11,37 @@
 <body>
 
     <header class="topbar">
-        <div style="display:flex; align-items:center; gap:10px">
-            <div class="brand">Image Lab</div>
-            <span class="muted">Name: <b id="fileName">untitled</b></span>
-            <!-- Left-side quick links -->
-            <a id="helpLinkLeft" class="ghost" href="{{ url_for('help_page') }}" target="_blank" rel="noopener">Help</a>
-            <a id="aboutLinkLeft" class="ghost" href="{{ url_for('about_page') }}" target="_blank" rel="noopener">About</a>
-        </div>
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="brand">Image Lab</div>
+        <span class="muted">Name: <b id="fileName">untitled</b></span>
+        <a id="helpLinkLeft" class="ghost" href="{{ url_for('help_page') }}" target="_blank" rel="noopener">Help</a>
+        <a id="aboutLinkLeft" class="ghost" href="{{ url_for('about_page') }}" target="_blank" rel="noopener">About</a>
+      </div>
 
-        <div class="actions">
-            <label class="file-btn">
-            <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
-            <span>Open Image</span>
-            </label>
-            <button id="btnPaste" class="ghost">Paste</button>
+      <div class="actions">
+        <label class="file-btn">
+          <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
+          <span>Open Image</span>
+        </label>
+        <button id="btnPaste" class="ghost">Paste</button>
 
-            <div class="sep"></div>
-            <label>Export format
-            <select id="exportFormat" class="select">
-                <option value="png">PNG</option>
-                <option value="jpeg">JPEG</option>
-                <option value="webp">WEBP</option>
-                <option value="bmp">BMP</option>
-                <option value="tiff">TIFF</option>
-            </select>
-            </label>
-            <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="quality" />
-            <button id="btnCopy" class="ghost">Copy</button>
-            <button id="btnDownload" class="primary">Download</button>
-        </div>
-</header>
+        <button id="btnReset" class="ghost" title="Clear image & history">Reset</button>
+        <div class="sep"></div>
+
+        <label>Export format
+          <select id="exportFormat" class="select">
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="webp">WEBP</option>
+            <option value="bmp">BMP</option>
+            <option value="tiff">TIFF</option>
+          </select>
+        </label>
+        <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="quality" />
+        <button id="btnCopy" class="ghost">Copy</button>
+        <button id="btnDownload" class="primary">Download</button>
+      </div>
+  </header>
 
 
   <main class="wrap">
@@ -241,6 +242,8 @@
 
   <script src="{{ url_for('static', filename='vendor/cropper.min.js') }}"></script>
   <script>const HAS_SEAM = {{ 'true' if has_seam else 'false' }};</script>
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+
 </body>
 </html>
