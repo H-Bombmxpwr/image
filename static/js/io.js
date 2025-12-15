@@ -3,6 +3,21 @@ import {
   pushHistory, loadDataURLToCanvas, setCurrent, setOriginal,
   clearHistory, getFileName, bootPreview, showToast, setIsGif
 } from './state.js';
+import { postJSON } from './api.js';
+
+// Map file extensions to MIME types for formats browsers don't recognize well
+const MIME_MAP = {
+  'tiff': 'image/tiff',
+  'tif': 'image/tiff',
+  'bmp': 'image/bmp',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'heic': 'image/heic',
+  'heif': 'image/heif',
+};
+
+// Formats that browsers can't display natively and need server conversion
+const NEEDS_CONVERSION = ['image/tiff', 'image/heic', 'image/heif', 'image/bmp'];
 
 export function wireOpeners() {
   const dropHint = document.getElementById('dropHint');
@@ -13,24 +28,54 @@ export function wireOpeners() {
   // Open file function
   async function openFile(file) {
     try {
+      // Determine MIME type - browsers often fail on TIFF, BMP etc.
+      let mimeType = file.type;
+      if (!mimeType || mimeType === 'application/octet-stream') {
+        const ext = file.name.split('.').pop().toLowerCase();
+        mimeType = MIME_MAP[ext] || 'image/png';
+      }
+      
       const buf = await file.arrayBuffer();
       const bytes = new Uint8Array(buf);
-      const dataURL = `data:${file.type || 'image/png'};base64,` + 
+      
+      // Build data URL with correct MIME type
+      let dataURL = `data:${mimeType};base64,` + 
         btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
       
       // Check if GIF
-      const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+      const isGif = mimeType === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
       setIsGif(isGif);
       
-      setCurrent(dataURL);
-      setOriginal(dataURL);
+      // Store original for export
+      const originalDataURL = dataURL;
+      
+      // For formats browsers can't display, convert to PNG via server
+      let displayDataURL = dataURL;
+      if (NEEDS_CONVERSION.includes(mimeType)) {
+        try {
+          showToast('Converting image for display...', 'info');
+          const result = await postJSON('/api/normalize', { image: dataURL });
+          displayDataURL = result.img;
+        } catch (e) {
+          console.warn('Could not normalize image, trying direct display:', e);
+        }
+      }
+      
+      // Clear old state before setting new
+      setCurrent(null);
+      setOriginal(null);
+      
+      // Set new image - store original for export, display converted version
+      setCurrent(displayDataURL);
+      setOriginal(originalDataURL);
       
       const baseName = file.name.replace(/\.[^.]+$/, '');
       setFileName(baseName);
       
       if (dropHint) dropHint.style.display = 'none';
       
-      loadDataURLToCanvas(dataURL);
+      // Load to canvas (this also handles GIF preview)
+      loadDataURLToCanvas(displayDataURL);
       clearHistory();
       pushHistory(`Opened "${getFileName()}"`);
       
@@ -40,7 +85,7 @@ export function wireOpeners() {
       showToast(`Opened: ${file.name}`, 'success');
     } catch (e) {
       console.error('Failed to open file:', e);
-      showToast('Failed to open file', 'error');
+      showToast('Failed to open file: ' + e.message, 'error');
     }
   }
   

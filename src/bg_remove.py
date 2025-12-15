@@ -3,11 +3,21 @@ from PIL import Image
 import io
 
 HAS_REMBG = False
+_rembg_error = None
+
 try:
     from rembg import remove
     HAS_REMBG = True
-except ImportError:
-    pass
+except ImportError as e:
+    _rembg_error = f"ImportError: {e}"
+except Exception as e:
+    _rembg_error = f"Error loading rembg: {e}"
+
+def get_rembg_status():
+    """Return status of rembg availability for debugging."""
+    if HAS_REMBG:
+        return "rembg is available"
+    return _rembg_error or "rembg not found"
 
 def remove_bg_ai(img: Image.Image) -> Image.Image:
     """Remove background using AI (rembg library)."""

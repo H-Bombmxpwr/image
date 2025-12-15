@@ -109,11 +109,127 @@ export function dataURLFromCanvas() {
   return canvas?.toDataURL('image/png') || '';
 }
 
+// GIF preview element reference
+let gifPreviewImg = null;
+let gifPlaying = true;
+
 export function loadDataURLToCanvas(dataURL) {
-  const img = new Image();
-  img.onload = () => setCanvasFromImage(img);
-  img.onerror = () => console.error('Failed to load image');
-  img.src = dataURL;
+  // Hide any existing GIF preview
+  hideGifPreview();
+  
+  // Clear the canvas first
+  if (canvas && ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  
+  // Check if this is a GIF
+  const isGif = dataURL.startsWith('data:image/gif');
+  
+  if (isGif) {
+    // For GIFs, use an img element to preserve animation
+    showGifPreview(dataURL);
+  } else {
+    // For static images, draw to canvas
+    const img = new Image();
+    img.onload = () => {
+      if (canvas) canvas.style.display = 'block';
+      setCanvasFromImage(img);
+    };
+    img.onerror = () => console.error('Failed to load image');
+    img.src = dataURL;
+  }
+}
+
+function showGifPreview(dataURL) {
+  const dropZone = document.getElementById('dropZone');
+  if (!dropZone) return;
+  
+  // Hide the canvas
+  if (canvas) canvas.style.display = 'none';
+  
+  // Create or reuse GIF preview container
+  let container = document.getElementById('gifPreviewContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'gifPreviewContainer';
+    container.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:center;z-index:1;flex-direction:column;';
+    dropZone.appendChild(container);
+  }
+  
+  // Create the GIF image element
+  if (!gifPreviewImg) {
+    gifPreviewImg = document.createElement('img');
+    gifPreviewImg.id = 'gifPreview';
+    gifPreviewImg.style.cssText = 'max-width:100%;max-height:65vh;display:block;object-fit:contain;';
+    container.appendChild(gifPreviewImg);
+  }
+  
+  // Create play/pause button if needed
+  let playBtn = document.getElementById('gifPlayPauseBtn');
+  if (!playBtn) {
+    playBtn = document.createElement('button');
+    playBtn.id = 'gifPlayPauseBtn';
+    playBtn.className = 'btn gif-play-btn';
+    playBtn.innerHTML = '⏸ Pause';
+    playBtn.style.cssText = 'margin-top:12px;background:rgba(20,24,31,0.9);border:1px solid rgba(99,102,241,0.5);padding:8px 20px;border-radius:20px;color:#fff;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px;';
+    playBtn.addEventListener('click', toggleGifPlayback);
+    container.appendChild(playBtn);
+  }
+  
+  // Reset play state
+  gifPlaying = true;
+  playBtn.innerHTML = '⏸ Pause';
+  playBtn.style.display = 'flex';
+  
+  // Load the GIF
+  gifPreviewImg.src = dataURL;
+  container.style.display = 'flex';
+}
+
+function hideGifPreview() {
+  const container = document.getElementById('gifPreviewContainer');
+  if (container) {
+    container.style.display = 'none';
+  }
+  if (canvas) {
+    canvas.style.display = 'block';
+  }
+  
+  // Reset GIF state
+  gifPlaying = true;
+  const playBtn = document.getElementById('gifPlayPauseBtn');
+  if (playBtn) {
+    playBtn.innerHTML = '⏸ Pause';
+  }
+}
+
+function toggleGifPlayback() {
+  const playBtn = document.getElementById('gifPlayPauseBtn');
+  if (!gifPreviewImg || !playBtn) return;
+  
+  if (gifPlaying) {
+    // Pause: capture current frame and show as static image
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = gifPreviewImg.naturalWidth || gifPreviewImg.width;
+    tempCanvas.height = gifPreviewImg.naturalHeight || gifPreviewImg.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(gifPreviewImg, 0, 0);
+    gifPreviewImg.src = tempCanvas.toDataURL('image/png');
+    playBtn.innerHTML = '▶ Play';
+    gifPlaying = false;
+  } else {
+    // Resume: reload the original GIF from CURRENT
+    if (CURRENT && CURRENT.startsWith('data:image/gif')) {
+      gifPreviewImg.src = CURRENT;
+    }
+    playBtn.innerHTML = '⏸ Pause';
+    gifPlaying = true;
+  }
+}
+
+// Export for external use
+export function isGifPlaying() {
+  return gifPlaying;
 }
 
 // Setters
