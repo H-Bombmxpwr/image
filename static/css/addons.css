@@ -1,0 +1,29 @@
+/* small, focused tweaks so main CSS stays tidy */
+
+/* --- Quality inline fields --- */
+.inline-field { display:inline-flex; align-items:center; gap:8px; margin-left:8px; }
+
+/* --- Smaller checkboxes across app --- */
+input[type="checkbox"] { transform: scale(.9); }
+
+/* --- Stage overlay for seams --- */
+.stage { position: relative; cursor: pointer; }
+.seam-overlay {
+  position:absolute; left:0; top:0; width:100%; height:100%;
+  pointer-events:none; image-rendering: pixelated;
+}
+
+/* --- Metadata editor --- */
+.meta-edit { margin: 10px 0 14px; display:grid; grid-template-columns: 1fr; gap:12px; }
+.meta-edit .kv { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+.meta-edit .kv label { display:flex; flex-direction:column; gap:6px; }
+.meta-edit .text { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:.45rem .6rem; border-radius:10px; }
+.meta-edit .mono { width:100%; background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:.6rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.meta-actions { display:flex; gap:8px; align-items:center; }
+
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.pair { display:flex; align-items:center; gap:8px; }
+
+/* Toggle buttons for filters */
+.btn.tgl { opacity: .9; }
+.btn.tgl.active { opacity: 1; box-shadow: 0 0 0 2px rgba(255,255,255,.22) inset; }

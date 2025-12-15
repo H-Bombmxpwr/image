@@ -1,28 +1,35 @@
 from flask import Flask, render_template, request, jsonify, send_file
-import io, os
+import io
+import os
 
 from src.io_utils import (
     b64_to_image, image_to_dataurl, dataurl_bytes, fmt_size,
-    stats_for, exif_to_dict, ALLOWED_EXPORT
+    stats_for, exif_to_dict, write_exif, ALLOWED_EXPORT
 )
 from src.ops import (
     rotate_img, flip_img, resize_img, crop_img,
-    apply_filters, apply_adjust, hist_equalize, remove_background, convert_img
+    apply_filters, apply_adjust, hist_equalize, remove_background, convert_img,
+    auto_enhance, vignette_img, add_border, add_watermark
+)
+from src.gif_ops import (
+    HAS_GIF, resize_gif, trim_gif, extract_gif_frames, 
+    change_gif_speed, reverse_gif, gif_to_frames_zip
 )
 from src.seam import HAS_SEAM, SEAM_BACKEND, seam_carve
+from src.bg_remove import HAS_REMBG, remove_bg_ai
 from src.exporter import prepare_download
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "dev-key"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-prod")
 
 # ---------- pages ----------
 @app.get("/")
 def index():
-    return render_template("index.html", has_seam=HAS_SEAM)
+    return render_template("index.html", has_seam=HAS_SEAM, has_rembg=HAS_REMBG, has_gif=HAS_GIF)
 
 @app.get("/help")
 def help_page():
-    return render_template("help.html", has_seam=HAS_SEAM, seam_backend=SEAM_BACKEND)
+    return render_template("help.html", has_seam=HAS_SEAM, seam_backend=SEAM_BACKEND, has_rembg=HAS_REMBG)
 
 @app.get("/about")
 def about_page():
@@ -97,10 +104,12 @@ def api_adjust():
     d = request.json
     img = b64_to_image(d["image"])
     out = apply_adjust(img,
-        float(d.get("brightness",1.0)),
-        float(d.get("contrast",  1.0)),
-        float(d.get("saturation",1.0)),
-        float(d.get("gamma",     1.0)),
+        float(d.get("brightness", 1.0)),
+        float(d.get("contrast", 1.0)),
+        float(d.get("saturation", 1.0)),
+        float(d.get("gamma", 1.0)),
+        float(d.get("hue", 0.0)),
+        float(d.get("temperature", 0.0)),
     )
     return jsonify({"img": image_to_dataurl(out)})
 
@@ -117,6 +126,15 @@ def api_background_remove():
     out = remove_background(img, float(d.get("tolerance", 18.0)))
     return jsonify({"img": image_to_dataurl(out, "PNG")})
 
+@app.post("/api/background_remove_ai")
+def api_background_remove_ai():
+    if not HAS_REMBG:
+        return jsonify({"error": "AI background removal not available (rembg not installed)"}), 400
+    d = request.json
+    img = b64_to_image(d["image"])
+    out = remove_bg_ai(img)
+    return jsonify({"img": image_to_dataurl(out, "PNG")})
+
 @app.post("/api/seam_carve")
 def api_seam():
     if not HAS_SEAM:
@@ -131,6 +149,100 @@ def api_seam():
     )
     return jsonify({"img": image_to_dataurl(out)})
 
+@app.post("/api/auto_enhance")
+def api_auto_enhance():
+    img = b64_to_image(request.json["image"])
+    out = auto_enhance(img)
+    return jsonify({"img": image_to_dataurl(out)})
+
+@app.post("/api/vignette")
+def api_vignette():
+    d = request.json
+    img = b64_to_image(d["image"])
+    out = vignette_img(img, float(d.get("strength", 0.5)))
+    return jsonify({"img": image_to_dataurl(out)})
+
+@app.post("/api/border")
+def api_border():
+    d = request.json
+    img = b64_to_image(d["image"])
+    out = add_border(img, int(d.get("size", 10)), d.get("color", "#000000"))
+    return jsonify({"img": image_to_dataurl(out)})
+
+@app.post("/api/watermark")
+def api_watermark():
+    d = request.json
+    img = b64_to_image(d["image"])
+    out = add_watermark(
+        img, 
+        d.get("text", ""),
+        d.get("position", "bottom-right"),
+        float(d.get("opacity", 0.5)),
+        d.get("color", "#ffffff")
+    )
+    return jsonify({"img": image_to_dataurl(out)})
+
+@app.post("/api/write_metadata")
+def api_write_metadata():
+    d = request.json
+    img = b64_to_image(d["image"])
+    metadata = d.get("metadata", {})
+    out = write_exif(img, metadata)
+    return jsonify({"img": image_to_dataurl(out)})
+
+# GIF endpoints
+@app.post("/api/gif/resize")
+def api_gif_resize():
+    if not HAS_GIF:
+        return jsonify({"error": "GIF support not available"}), 400
+    d = request.json
+    result = resize_gif(
+        d["image"],
+        int(d.get("width", 0)),
+        int(d.get("height", 0)),
+        bool(d.get("keep_aspect", True))
+    )
+    return jsonify({"img": result})
+
+@app.post("/api/gif/trim")
+def api_gif_trim():
+    if not HAS_GIF:
+        return jsonify({"error": "GIF support not available"}), 400
+    d = request.json
+    result = trim_gif(
+        d["image"],
+        int(d.get("start_frame", 0)),
+        int(d.get("end_frame", -1))
+    )
+    return jsonify({"img": result})
+
+@app.post("/api/gif/speed")
+def api_gif_speed():
+    if not HAS_GIF:
+        return jsonify({"error": "GIF support not available"}), 400
+    d = request.json
+    result = change_gif_speed(d["image"], float(d.get("speed_factor", 1.0)))
+    return jsonify({"img": result})
+
+@app.post("/api/gif/reverse")
+def api_gif_reverse():
+    if not HAS_GIF:
+        return jsonify({"error": "GIF support not available"}), 400
+    d = request.json
+    result = reverse_gif(d["image"])
+    return jsonify({"img": result})
+
+@app.post("/api/gif/info")
+def api_gif_info():
+    if not HAS_GIF:
+        return jsonify({"error": "GIF support not available"}), 400
+    d = request.json
+    frames = extract_gif_frames(d["image"])
+    return jsonify({
+        "frame_count": len(frames),
+        "frames": frames[:10]  # Return first 10 frame previews
+    })
+
 @app.post("/api/export")
 def api_export():
     d = request.json
@@ -143,8 +255,8 @@ def api_export():
 
 
 app.config.update(
-    TEMPLATES_AUTO_RELOAD=True,        # templates
-    SEND_FILE_MAX_AGE_DEFAULT=0        # static files
+    TEMPLATES_AUTO_RELOAD=True,
+    SEND_FILE_MAX_AGE_DEFAULT=0
 )
 
 if app.debug:
@@ -157,4 +269,4 @@ if app.debug:
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)

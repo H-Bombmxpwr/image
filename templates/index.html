@@ -1,249 +1,448 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Image Lab — Fast Online Editor</title>
+  <meta name="description" content="A powerful browser-based image editor with cropping, resizing, filters, background removal, and more.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='vendor/cropper.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
 </head>
 <body>
-
-    <header class="topbar">
-      <div style="display:flex; align-items:center; gap:10px">
-        <div class="brand">Image Lab</div>
-        <span class="muted">Name: <b id="fileName">untitled</b></span>
-        <a id="helpLinkLeft" class="ghost" href="{{ url_for('help_page') }}" target="_blank" rel="noopener">Help</a>
-        <a id="aboutLinkLeft" class="ghost" href="{{ url_for('about_page') }}" target="_blank" rel="noopener">About</a>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">Image Lab</span>
+      <div class="brand-meta">
+        <span class="muted">File:</span>
+        <span class="file-name" id="fileName">untitled</span>
       </div>
-
-      <div class="actions">
-        <label class="file-btn">
-          <input id="fileInput" type="file" accept="image/*,.bmp,.tiff" hidden />
-          <span>Open Image</span>
-        </label>
-        <button id="btnPaste" class="ghost">Paste</button>
-
-        <button id="btnReset" class="ghost" title="Clear image & history">Reset</button>
-        <div class="sep"></div>
-
-        <label>Export format
-          <select id="exportFormat" class="select">
-            <option value="png">PNG</option>
-            <option value="jpeg">JPEG</option>
-            <option value="webp">WEBP</option>
-            <option value="bmp">BMP</option>
-            <option value="tiff">TIFF</option>
-          </select>
-        </label>
-        <input id="exportQuality" class="num" type="number" min="1" max="100" value="92" title="quality" />
-        <button id="btnCopy" class="ghost">Copy</button>
-        <button id="btnDownload" class="primary">Download</button>
-      </div>
+      <nav class="nav-links">
+        <a href="{{ url_for('help_page') }}" class="nav-link" target="_blank">Help</a>
+        <a href="{{ url_for('about_page') }}" class="nav-link" target="_blank">About</a>
+      </nav>
+    </div>
+    <div class="actions">
+      <label class="btn file-btn">
+        <input id="fileInput" type="file" accept="image/*,.bmp,.tiff,.gif">
+        <span>Open</span>
+      </label>
+      <button id="btnPaste" class="btn btn-ghost">Paste</button>
+      <button id="btnReset" class="btn btn-ghost">Reset</button>
+      <div class="separator"></div>
+      <select id="exportFormat" class="select input-sm" style="width:auto">
+        <option value="png">PNG</option>
+        <option value="jpeg">JPEG</option>
+        <option value="webp">WEBP</option>
+        <option value="gif">GIF</option>
+        <option value="bmp">BMP</option>
+        <option value="tiff">TIFF</option>
+      </select>
+      <input id="exportQuality" class="input input-sm num-input" type="number" min="1" max="100" value="92" title="Quality">
+      <button id="btnCopy" class="btn btn-ghost">Copy</button>
+      <button id="btnDownload" class="btn btn-primary">Download</button>
+    </div>
   </header>
 
-
-  <main class="wrap">
-    <!-- LEFT: preview + info + exif + history -->
-    <section class="left">
-      <div id="dropZone" class="stage" tabindex="0" aria-label="Canvas preview and drop zone">
+  <main class="app-layout">
+    <div class="main-content">
+      <div id="dropZone" class="preview-container" tabindex="0">
         <canvas id="canvas"></canvas>
-        <div id="dropHint">Drop or paste an image</div>
+        <div id="dropHint" class="drop-hint">
+          <svg class="drop-hint-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="m21 15-5-5L5 21"/>
+          </svg>
+          <div class="drop-hint-text">Drop an image here, or click to open</div>
+          <div class="drop-hint-sub">PNG, JPEG, WEBP, GIF, BMP, TIFF • Paste with Ctrl+V</div>
+        </div>
       </div>
 
-      <div class="info">
-        <div><b>Format:</b> <span id="infoFormat">—</span></div>
-        <div><b>Mode:</b> <span id="infoMode">—</span></div>
-        <div><b>Dimensions:</b> <span id="infoDim">—</span></div>
-        <div><b>Average RGB:</b> <span id="infoAvg">—</span></div>
-        <div><b>Aspect:</b> <span id="infoAspect">—</span></div>
-        <div><b>File Size:</b> <span id="infoSize">—</span></div>
+      <div class="info-panel">
+        <div class="info-grid">
+          <div class="info-item"><span class="info-label">Format</span><span class="info-value" id="infoFormat">—</span></div>
+          <div class="info-item"><span class="info-label">Mode</span><span class="info-value" id="infoMode">—</span></div>
+          <div class="info-item"><span class="info-label">Dimensions</span><span class="info-value" id="infoDim">—</span></div>
+          <div class="info-item"><span class="info-label">Aspect</span><span class="info-value" id="infoAspect">—</span></div>
+          <div class="info-item"><span class="info-label">Size</span><span class="info-value" id="infoSize">—</span></div>
+          <div class="info-item"><span class="info-label">Avg Color</span><span class="info-value" id="infoAvg">—</span></div>
+        </div>
       </div>
 
-      <details class="exif">
-        <summary>Metadata (EXIF)</summary>
-        <pre id="exifBox">{}</pre>
-      </details>
-
-      <!-- HISTORY now lives here (left) -->
-      <div class="history-wrap">
-        <div class="group-title">History</div>
-        <div id="historyList" class="history"></div>
+      <div class="metadata-panel" id="metadataPanel">
+        <div class="metadata-header" id="metadataToggle">
+          <span class="metadata-title">Metadata (EXIF)</span>
+          <span class="metadata-toggle">▼</span>
+        </div>
+        <div class="metadata-content">
+          <div id="exifContent" class="metadata-empty">No metadata available</div>
+        </div>
       </div>
-    </section>
 
-    <!-- RIGHT: tools with tabs -->
-    <section class="right">
+      <div class="history-panel">
+        <div class="history-title">History</div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </div>
+
+    <div class="sidebar">
       <div class="tabs">
         <button class="tab active" data-panel="basic">Basic</button>
         <button class="tab" data-panel="adjust">Adjust</button>
         <button class="tab" data-panel="filters">Filters</button>
         <button class="tab" data-panel="advanced">Advanced</button>
+        <button class="tab" data-panel="gif">GIF</button>
       </div>
 
       <div class="tool-panels">
-        <!-- BASIC -->
-        <div id="panel-basic" class="panel show">
-          <div class="group">
-            <div class="group-title">Editing</div>
-            <div class="toolbar">
+        <!-- BASIC PANEL -->
+        <div id="panel-basic" class="panel active">
+          <div class="tool-group">
+            <div class="group-title">Transform</div>
+            <div class="tool-grid">
               <button id="openCropper" class="btn">Crop</button>
               <button id="btnFlipH" class="btn">Flip H</button>
               <button id="btnFlipV" class="btn">Flip V</button>
+              <button id="btnRotNeg90" class="btn">−90°</button>
+              <button id="btnRotPos90" class="btn">+90°</button>
+              <button id="btnRename" class="btn">Rename</button>
             </div>
-          </div>
-
-          <div class="group">
-            <div class="group-title">Rotate</div>
-            <div class="toolbar">
-              <button id="btnRotNeg90" class="btn">Rotate −90°</button>
-              <button id="btnRotPos90" class="btn">Rotate +90°</button>
-            </div>
-            <details class="advanced">
-              <summary>Advanced</summary>
-              <div class="row">
-                <label>Degrees <input id="rotateDeg" type="number" value="0" step="1" class="num"></label>
-                <button id="btnRotate" class="btn">Apply</button>
+            <div class="accordion" id="rotateAccordion">
+              <div class="accordion-header">Custom Rotation <span class="accordion-icon">▼</span></div>
+              <div class="accordion-content">
+                <div class="tool-row">
+                  <input id="rotateDeg" type="number" value="0" step="1" class="input num-input" placeholder="Degrees">
+                  <button id="btnRotate" class="btn">Rotate</button>
+                </div>
               </div>
-            </details>
+            </div>
           </div>
 
-          <div class="group">
+          <div class="tool-group">
             <div class="group-title">Resize</div>
-            <div class="grid">
-              <label>Width <input id="resizeW" type="number" min="1" class="num"></label>
-              <label>Height <input id="resizeH" type="number" min="1" class="num"></label>
-              <label class="chk"><input id="keepAspect" type="checkbox" checked> Keep aspect</label>
-              <label>Method
+            <div class="tool-grid">
+              <div>
+                <label class="tool-label">Width</label>
+                <input id="resizeW" type="number" min="1" class="input">
+              </div>
+              <div>
+                <label class="tool-label">Height</label>
+                <input id="resizeH" type="number" min="1" class="input">
+              </div>
+              <label class="checkbox full-width">
+                <input id="keepAspect" type="checkbox" checked>
+                Keep aspect ratio
+              </label>
+              <div class="full-width">
+                <label class="tool-label">Method</label>
                 <select id="resampleMethod" class="select">
-                  <option value="lanczos">Lanczos</option>
+                  <option value="lanczos">Lanczos (best)</option>
                   <option value="bicubic">Bicubic</option>
                   <option value="bilinear">Bilinear</option>
                   <option value="nearest">Nearest</option>
                 </select>
-              </label>
-              <button id="btnResize" class="btn full">Resize</button>
+              </div>
+              <button id="btnResize" class="btn full-width">Apply Resize</button>
             </div>
           </div>
 
-          <div class="group">
-            <div class="group-title">Convert (re-encode)</div>
-            <div class="row">
-              <label>To
-                <select id="convertTo" class="select">
-                  <option value="png">PNG</option>
-                  <option value="jpeg">JPEG</option>
-                  <option value="webp">WEBP</option>
-                  <option value="bmp">BMP</option>
-                  <option value="tiff">TIFF</option>
-                </select>
-              </label>
-              <label>Quality</label>
-              <input id="convertQuality" class="num" type="number" min="1" max="100" value="92" />
+          <div class="tool-group">
+            <div class="group-title">Convert Format</div>
+            <div class="tool-row">
+              <select id="convertTo" class="select" style="flex:1">
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WEBP</option>
+                <option value="gif">GIF</option>
+                <option value="bmp">BMP</option>
+                <option value="tiff">TIFF</option>
+              </select>
+              <input id="convertQuality" class="input num-input" type="number" min="1" max="100" value="92">
               <button id="btnConvert" class="btn">Convert</button>
             </div>
           </div>
-
-          <div class="group">
-            <div class="group-title">File</div>
-            <div class="row">
-              <button id="btnRename" class="btn">Rename</button>
-            </div>
-          </div>
         </div>
 
-        <!-- ADJUST -->
+        <!-- ADJUST PANEL -->
         <div id="panel-adjust" class="panel">
-          <div class="group">
+          <div class="tool-group">
             <div class="group-title">Tone & Color</div>
-            <div class="grid">
-              <label>Brightness <input id="adjBright" type="range" min="0" max="200" value="100"></label>
-              <label>Contrast <input id="adjContrast" type="range" min="0" max="200" value="100"></label>
-              <label>Saturation <input id="adjSaturation" type="range" min="0" max="200" value="100"></label>
-              <label>Gamma <input id="adjGamma" type="range" min="10" max="500" value="100"></label>
-              <button id="btnAdjust" class="btn full">Apply adjustments</button>
+            <div>
+              <label class="tool-label">Brightness</label>
+              <div class="slider-row">
+                <input id="adjBright" type="range" min="0" max="200" value="100">
+                <span class="slider-value" id="adjBrightVal">100%</span>
+              </div>
             </div>
+            <div>
+              <label class="tool-label">Contrast</label>
+              <div class="slider-row">
+                <input id="adjContrast" type="range" min="0" max="200" value="100">
+                <span class="slider-value" id="adjContrastVal">100%</span>
+              </div>
+            </div>
+            <div>
+              <label class="tool-label">Saturation</label>
+              <div class="slider-row">
+                <input id="adjSaturation" type="range" min="0" max="200" value="100">
+                <span class="slider-value" id="adjSaturationVal">100%</span>
+              </div>
+            </div>
+            <div>
+              <label class="tool-label">Gamma</label>
+              <div class="slider-row">
+                <input id="adjGamma" type="range" min="10" max="500" value="100">
+                <span class="slider-value" id="adjGammaVal">1.00</span>
+              </div>
+            </div>
+            <div>
+              <label class="tool-label">Temperature</label>
+              <div class="slider-row">
+                <input id="adjTemp" type="range" min="-100" max="100" value="0">
+                <span class="slider-value" id="adjTempVal">0</span>
+              </div>
+            </div>
+            <button id="btnAdjust" class="btn full-width" style="margin-top:12px">Apply Adjustments</button>
+            <button id="btnAutoEnhance" class="btn btn-ghost full-width" style="margin-top:8px">Auto Enhance</button>
           </div>
         </div>
 
-        <!-- FILTERS -->
+        <!-- FILTERS PANEL -->
         <div id="panel-filters" class="panel">
-          <div class="group">
-            <div class="group-title">Filters</div>
-            <div class="grid">
-              <label class="chk"><input id="fGrayscale" type="checkbox"> Grayscale</label>
-              <label class="chk"><input id="fSepia" type="checkbox"> Sepia</label>
-              <label class="chk"><input id="fInvert" type="checkbox"> Invert</label>
-              <label class="chk"><input id="fSharpen" type="checkbox"> Sharpen</label>
-              <label class="chk"><input id="fEdge" type="checkbox"> Edges</label>
-              <label class="chk"><input id="fEmboss" type="checkbox"> Emboss</label>
-
-              <label>Gaussian radius <input id="fGaussR" class="num" type="number" min="0" step="0.5" value="1.5"></label>
-              <label class="chk"><input id="fGaussian" type="checkbox"> Gaussian</label>
-
-              <label>Median size <input id="fMedianSize" class="num" type="number" min="3" step="2" value="3"></label>
-              <label class="chk"><input id="fMedian" type="checkbox"> Median</label>
-
-              <label>Posterize bits <input id="fPoster" class="num" type="number" min="1" max="8" value="0"></label>
-              <label>Pixelate <input id="fPixel" class="num" type="number" min="1" value="1"></label>
-
-              <button id="btnFilters" class="btn full">Apply filters</button>
+          <div class="tool-group">
+            <div class="group-title">Quick Filters</div>
+            <div class="tool-grid">
+              <label class="checkbox"><input id="fGrayscale" type="checkbox"> Grayscale</label>
+              <label class="checkbox"><input id="fSepia" type="checkbox"> Sepia</label>
+              <label class="checkbox"><input id="fInvert" type="checkbox"> Invert</label>
+              <label class="checkbox"><input id="fSharpen" type="checkbox"> Sharpen</label>
+              <label class="checkbox"><input id="fEdge" type="checkbox"> Edges</label>
+              <label class="checkbox"><input id="fEmboss" type="checkbox"> Emboss</label>
+              <label class="checkbox"><input id="fContour" type="checkbox"> Contour</label>
+              <label class="checkbox"><input id="fSmooth" type="checkbox"> Smooth</label>
             </div>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Blur</div>
+            <div class="tool-row">
+              <label class="checkbox"><input id="fGaussian" type="checkbox"> Gaussian</label>
+              <input id="fGaussR" class="input num-input" type="number" min="0" step="0.5" value="1.5" placeholder="Radius">
+            </div>
+            <div class="tool-row">
+              <label class="checkbox"><input id="fMedian" type="checkbox"> Median</label>
+              <input id="fMedianSize" class="input num-input" type="number" min="3" step="2" value="3" placeholder="Size">
+            </div>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Effects</div>
+            <div>
+              <label class="tool-label">Posterize (bits: 0=off)</label>
+              <input id="fPoster" class="input" type="number" min="0" max="8" value="0">
+            </div>
+            <div>
+              <label class="tool-label">Pixelate (size: 1=off)</label>
+              <input id="fPixel" class="input" type="number" min="1" value="1">
+            </div>
+            <div>
+              <label class="tool-label">Solarize (threshold: 0=off)</label>
+              <input id="fSolarize" class="input" type="number" min="0" max="255" value="0">
+            </div>
+            <button id="btnFilters" class="btn full-width" style="margin-top:12px">Apply Filters</button>
           </div>
         </div>
 
-        <!-- ADVANCED -->
+        <!-- ADVANCED PANEL -->
         <div id="panel-advanced" class="panel">
-          <div class="group">
-            <div class="group-title">Histogram Equalization</div>
-            <div class="row">
-              <button id="btnHistEq" class="btn">Run</button>
+          <div class="tool-group">
+            <div class="group-title">Histogram</div>
+            <button id="btnHistEq" class="btn full-width">Equalize Histogram</button>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Background Removal</div>
+            <div>
+              <label class="tool-label">Simple (tolerance)</label>
+              <div class="tool-row">
+                <input id="bgTol" type="range" min="0" max="100" value="18" style="flex:1">
+                <span id="bgTolVal" class="slider-value">18</span>
+              </div>
+              <button id="btnBgRemove" class="btn full-width" style="margin-top:8px">Remove (Simple)</button>
+            </div>
+            {% if has_rembg %}
+            <div style="margin-top:16px">
+              <label class="tool-label">AI Background Removal <span class="badge badge-success">Premium</span></label>
+              <button id="btnBgRemoveAI" class="btn btn-primary full-width" style="margin-top:8px">Remove with AI</button>
+              <p class="text-xs muted" style="margin-top:6px">Uses deep learning for precise cutouts</p>
+            </div>
+            {% else %}
+            <p class="text-xs muted" style="margin-top:12px">AI removal not available (rembg not installed)</p>
+            {% endif %}
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Effects</div>
+            <div>
+              <label class="tool-label">Vignette</label>
+              <div class="slider-row">
+                <input id="vignetteStrength" type="range" min="0" max="100" value="50">
+                <span id="vignetteVal" class="slider-value">50%</span>
+              </div>
+              <button id="btnVignette" class="btn full-width" style="margin-top:8px">Apply Vignette</button>
             </div>
           </div>
 
-          <div class="group">
-            <div class="group-title">Background</div>
-            <div class="row">
-              <label>Remove solid background (tolerance 0–100)</label>
-              <input id="bgTol" type="range" min="0" max="100" value="18">
-              <button id="btnBgRemove" class="btn">Remove</button>
+          <div class="tool-group">
+            <div class="group-title">Border</div>
+            <div class="tool-row">
+              <input id="borderSize" type="number" min="1" max="200" value="10" class="input num-input" placeholder="Size">
+              <input id="borderColor" type="color" value="#000000">
+              <button id="btnBorder" class="btn">Add Border</button>
             </div>
           </div>
 
-          <div class="group">
+          <div class="tool-group">
+            <div class="group-title">Watermark</div>
+            <input id="watermarkText" type="text" class="input" placeholder="Watermark text...">
+            <div class="tool-row" style="margin-top:8px">
+              <select id="watermarkPos" class="select" style="flex:1">
+                <option value="bottom-right">Bottom Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="top-right">Top Right</option>
+                <option value="top-left">Top Left</option>
+                <option value="center">Center</option>
+              </select>
+              <input id="watermarkColor" type="color" value="#ffffff">
+            </div>
+            <div style="margin-top:8px">
+              <label class="tool-label">Opacity</label>
+              <div class="slider-row">
+                <input id="watermarkOpacity" type="range" min="10" max="100" value="50">
+                <span id="watermarkOpacityVal" class="slider-value">50%</span>
+              </div>
+            </div>
+            <button id="btnWatermark" class="btn full-width" style="margin-top:8px">Add Watermark</button>
+          </div>
+
+          {% if has_seam %}
+          <div class="tool-group">
             <div class="group-title">Seam Carving</div>
-                <div class="row">
-                    <label>Seam Carving (width only)</label>
-                    {% if has_seam %}
-                        <input id="seamSlider" type="range" min="10" max="2000" value="400" style="width:220px">
-                        <span id="seamW" class="muted">— px</span>
-                        <span id="seamBusy" class="spinner hidden" aria-label="processing"></span>
-                    {% else %}
-                        <em class="muted">seam-carving Python package not installed</em>
-                    {% endif %}
-                </div>
+            <label class="tool-label">Target Width</label>
+            <div class="slider-row">
+              <input id="seamSlider" type="range" min="10" max="2000" value="400">
+              <span id="seamW" class="slider-value">— px</span>
+            </div>
+            <span id="seamBusy" class="spinner hidden"></span>
           </div>
+          {% endif %}
+        </div>
+
+        <!-- GIF PANEL -->
+        <div id="panel-gif" class="panel">
+          {% if has_gif %}
+          <div class="tool-group">
+            <div class="group-title">GIF Info</div>
+            <div id="gifInfo" class="muted text-sm">Load a GIF to see info</div>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Resize GIF</div>
+            <div class="tool-grid">
+              <div>
+                <label class="tool-label">Width</label>
+                <input id="gifResizeW" type="number" min="1" class="input">
+              </div>
+              <div>
+                <label class="tool-label">Height</label>
+                <input id="gifResizeH" type="number" min="1" class="input">
+              </div>
+              <label class="checkbox full-width">
+                <input id="gifKeepAspect" type="checkbox" checked>
+                Keep aspect ratio
+              </label>
+              <button id="btnGifResize" class="btn full-width">Resize GIF</button>
+            </div>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Trim Frames</div>
+            <div class="tool-row">
+              <div>
+                <label class="tool-label">Start</label>
+                <input id="gifTrimStart" type="number" min="0" value="0" class="input num-input">
+              </div>
+              <div>
+                <label class="tool-label">End</label>
+                <input id="gifTrimEnd" type="number" min="-1" value="-1" class="input num-input">
+              </div>
+              <button id="btnGifTrim" class="btn">Trim</button>
+            </div>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Speed</div>
+            <div class="slider-row">
+              <input id="gifSpeed" type="range" min="25" max="400" value="100">
+              <span id="gifSpeedVal" class="slider-value">1.0x</span>
+            </div>
+            <button id="btnGifSpeed" class="btn full-width" style="margin-top:8px">Apply Speed</button>
+          </div>
+
+          <div class="tool-group">
+            <div class="group-title">Other</div>
+            <button id="btnGifReverse" class="btn full-width">Reverse GIF</button>
+          </div>
+          {% else %}
+          <div class="tool-group">
+            <p class="muted">GIF support is built-in. Load a GIF file to use these tools.</p>
+          </div>
+          {% endif %}
         </div>
       </div>
-    </section>
+    </div>
   </main>
 
-  <!-- Cropper Modal -->
+  <!-- Crop Dialog -->
   <dialog id="cropDialog">
-    <div class="crop-wrap">
-      <img id="cropImage" alt="crop preview">
+    <div class="dialog-header">
+      <span class="dialog-title">Crop Image</span>
+      <button id="cropCancel" class="btn btn-ghost btn-icon">✕</button>
     </div>
-    <div class="crop-actions">
-      <button id="cropCancel" class="ghost">Cancel</button>
-      <button id="cropApply" class="primary">Crop</button>
+    <div class="dialog-body">
+      <div class="crop-container">
+        <img id="cropImage" alt="Crop preview">
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button id="cropCancelBtn" class="btn btn-ghost">Cancel</button>
+      <button id="cropApply" class="btn btn-primary">Apply Crop</button>
     </div>
   </dialog>
 
+  <!-- Paste Overlay -->
+  <div id="pasteOverlay" class="overlay hidden">
+    <svg class="overlay-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="9" y="9" width="13" height="13" rx="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </svg>
+    <div class="overlay-text">Press Ctrl+V to paste image</div>
+    <div class="overlay-sub">or click anywhere to cancel</div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
   <script src="{{ url_for('static', filename='vendor/cropper.min.js') }}"></script>
-  <script>const HAS_SEAM = {{ 'true' if has_seam else 'false' }};</script>
+  <script>
+    const HAS_SEAM = {{ 'true' if has_seam else 'false' }};
+    const HAS_REMBG = {{ 'true' if has_rembg else 'false' }};
+    const HAS_GIF = {{ 'true' if has_gif else 'false' }};
+  </script>
   <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
-
-
 </body>
 </html>

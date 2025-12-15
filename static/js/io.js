@@ -1,111 +1,170 @@
 import {
   refreshInspect, setFileName, renderHistory, saveState,
   pushHistory, loadDataURLToCanvas, setCurrent, setOriginal,
-  clearHistory, getFileName, bootPreview
+  clearHistory, getFileName, bootPreview, showToast, setIsGif
 } from './state.js';
 
-export function wireOpeners(){
-  const hint = document.getElementById('dropHint');
-  const drop = document.getElementById('dropZone');
+export function wireOpeners() {
+  const dropHint = document.getElementById('dropHint');
+  const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
+  const pasteOverlay = document.getElementById('pasteOverlay');
 
-  async function openFile(file){
-    const buf = await file.arrayBuffer();
-    const dataURL = `data:${file.type};base64,` + btoa(String.fromCharCode(...new Uint8Array(buf)));
-
-    setCurrent(dataURL);
-    setOriginal(dataURL);
-    setFileName(file.name.replace(/\.[^.]+$/, ''));
-    if (hint) hint.style.display = 'none';
-
-    loadDataURLToCanvas(dataURL);
-    clearHistory();
-    pushHistory(`Opened "${getFileName()}"`);
-
-    await refreshInspect();
-    saveState();
+  // Open file function
+  async function openFile(file) {
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      const dataURL = `data:${file.type || 'image/png'};base64,` + 
+        btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
+      
+      // Check if GIF
+      const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+      setIsGif(isGif);
+      
+      setCurrent(dataURL);
+      setOriginal(dataURL);
+      
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      setFileName(baseName);
+      
+      if (dropHint) dropHint.style.display = 'none';
+      
+      loadDataURLToCanvas(dataURL);
+      clearHistory();
+      pushHistory(`Opened "${getFileName()}"`);
+      
+      await refreshInspect();
+      saveState();
+      
+      showToast(`Opened: ${file.name}`, 'success');
+    } catch (e) {
+      console.error('Failed to open file:', e);
+      showToast('Failed to open file', 'error');
+    }
   }
-  window.openImageFile = openFile; // optional: expose for manual testing
+  
+  // Expose for testing
+  window.openImageFile = openFile;
 
-  // File picker
-  fileInput?.addEventListener('change', (e)=>{
+  // File input change
+  fileInput?.addEventListener('change', (e) => {
     const f = e.target.files?.[0];
-    if(f) openFile(f);
+    if (f) openFile(f);
+    e.target.value = ''; // Reset for same file selection
   });
 
-  // Click the stage to open picker (handy with checkerboard)
-  drop?.addEventListener('click', ()=>{
-    document.getElementById('fileInput')?.click();
-  });
-
-  // Reset button → bootPreview (checker + cleared history)
-  document.getElementById('btnReset')?.addEventListener('click', ()=>{
-    bootPreview();
-    saveState(); // persists checker as current (like boot)
-  });
-
-  // Paste button (async API → overlay fallback)
-  document.getElementById('btnPaste')?.addEventListener('click', async ()=>{
-    if (navigator.clipboard && window.isSecureContext) {
-      try { await tryReadFromClipboard(openFile); return; }
-      catch(e) { /* fall through */ }
+  // Click drop zone to open picker
+  dropZone?.addEventListener('click', (e) => {
+    if (e.target === dropZone || e.target === dropHint || dropHint?.contains(e.target)) {
+      fileInput?.click();
     }
-    const ov = document.getElementById('pasteOverlay');
-    if(!ov) return;
-    ov.classList.remove('hidden');
-    const onPaste = async (e)=>{
-      ov.classList.add('hidden');
-      window.removeEventListener('paste', onPaste);
-      for(const item of e.clipboardData.items){
-        if(item.type.startsWith('image/')){
-          const blob = item.getAsFile();
-          if(window.ORIGINAL && !confirm('Replace current image with the pasted one?')) return;
-          await openFile(new File([blob], 'pasted', { type: blob.type || 'image/png' }));
-          return;
+  });
+
+  // Reset button
+  document.getElementById('btnReset')?.addEventListener('click', () => {
+    if (confirm('Clear the current image and start fresh?')) {
+      bootPreview();
+      localStorage.removeItem('imagelab-session-v2');
+      showToast('Reset complete');
+    }
+  });
+
+  // Paste button
+  document.getElementById('btnPaste')?.addEventListener('click', async () => {
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.read) {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              const file = new File([blob], 'pasted', { type });
+              await openFile(file);
+              return;
+            }
+          }
         }
+        showToast('No image in clipboard', 'error');
+        return;
+      } catch (e) {
+        // Fall through to overlay method
+        console.log('Clipboard API failed, using fallback');
       }
-      alert('Clipboard did not contain an image.');
-    };
-    window.addEventListener('paste', onPaste, { once:true });
-  });
-
-  // Global paste
-  window.addEventListener('paste', async (e)=>{
-    for(const item of e.clipboardData.items){
-      if(item.type.startsWith('image/')){
-        const blob = item.getAsFile();
-        if(window.ORIGINAL && !confirm('Replace current image with the pasted one?')) return;
-        await openFile(new File([blob], 'pasted', { type: blob.type || 'image/png' }));
-        break;
-      }
+    }
+    
+    // Show paste overlay as fallback
+    if (pasteOverlay) {
+      pasteOverlay.classList.remove('hidden');
     }
   });
 
-  // Drag & drop
-  ['dragenter','dragover'].forEach(ev => drop?.addEventListener(ev, e=>{
-    e.preventDefault(); drop.classList.add('drag');
-  }));
-  ['dragleave','drop'].forEach(ev => drop?.addEventListener(ev, e=>{
-    e.preventDefault(); drop.classList.remove('drag');
-  }));
-  drop?.addEventListener('drop', (e)=>{
-    e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if(f) openFile(f);
+  // Paste overlay click to dismiss
+  pasteOverlay?.addEventListener('click', () => {
+    pasteOverlay.classList.add('hidden');
   });
-}
 
-async function tryReadFromClipboard(openFile){
-  const items = await navigator.clipboard.read();
-  for (const it of items){
-    for (const type of it.types){
-      if(type.startsWith('image/')){
-        const blob = await it.getType(type);
-        if(window.ORIGINAL && !confirm('Replace current image with the pasted one?')) return;
-        await openFile(new File([blob], 'pasted', {type}));
+  // Global paste handler
+  window.addEventListener('paste', async (e) => {
+    // Hide overlay if shown
+    if (pasteOverlay) {
+      pasteOverlay.classList.add('hidden');
+    }
+    
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (blob) {
+          const file = new File([blob], 'pasted', { type: blob.type || 'image/png' });
+          await openFile(file);
+        }
         return;
       }
     }
-  }
-  alert('Clipboard does not contain an image');
+  });
+
+  // Drag and drop
+  ['dragenter', 'dragover'].forEach(ev => {
+    dropZone?.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add('drag-over');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(ev => {
+    dropZone?.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('drag-over');
+    });
+  });
+
+  dropZone?.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer?.files;
+    if (files?.length > 0) {
+      await openFile(files[0]);
+    }
+  });
+
+  // Also handle drops on the entire window
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  window.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    if (e.target === dropZone || dropZone?.contains(e.target)) return; // Already handled
+    
+    const files = e.dataTransfer?.files;
+    if (files?.length > 0) {
+      await openFile(files[0]);
+    }
+  });
 }

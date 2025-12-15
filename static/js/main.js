@@ -1,18 +1,20 @@
 import { initStateFromStorage, bootPreview, saveOnUnload, setFileName, pushHistory } from './state.js';
-import { wireOpeners }          from './io.js';
-import { wireTabs }             from './tabs.js';
-import { wireAspectCoupling }   from './aspect.js';
-import { wireBasic }            from './basic.js';
-import { wireAdjust }           from './adjust.js';
-import { wireFilters }          from './filters.js';
-import { wireAdvanced }         from './advanced.js';
-import { wireCropper }          from './cropper.js';
-import { wireExporter }         from './exporter.js';
+import { wireOpeners } from './io.js';
+import { wireTabs } from './tabs.js';
+import { wireAspectCoupling } from './aspect.js';
+import { wireBasic } from './basic.js';
+import { wireAdjust } from './adjust.js';
+import { wireFilters } from './filters.js';
+import { wireAdvanced } from './advanced.js';
+import { wireGif } from './gif.js';
+import { wireCropper } from './cropper.js';
+import { wireExporter } from './exporter.js';
 
-(async function start(){
-  const restored = initStateFromStorage();   // restore session if present
+(async function start() {
+  // Try to restore session
+  const restored = initStateFromStorage();
 
-  // Wire UI
+  // Wire all UI modules
   wireOpeners();
   wireTabs();
   wireAspectCoupling();
@@ -20,17 +22,23 @@ import { wireExporter }         from './exporter.js';
   wireAdjust();
   wireFilters();
   wireAdvanced();
+  wireGif();
   wireCropper();
   wireExporter();
 
-  // Boot checkerboard exactly like your app.js
-  if(!restored) bootPreview();
+  // Boot with checkerboard if no session restored
+  if (!restored) {
+    bootPreview();
+  }
 
-  // Support direct rename event from basic.js
-  window.addEventListener('rename-file', (ev)=>{
+  // Support rename event from basic.js
+  window.addEventListener('rename-file', (ev) => {
     setFileName(ev.detail.name);
     pushHistory(`Rename to "${document.getElementById('fileName')?.textContent || ev.detail.name}"`);
   });
 
+  // Auto-save on unload
   saveOnUnload();
+
+  console.log('Image Lab initialized');
 })();

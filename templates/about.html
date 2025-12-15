@@ -1,45 +1,143 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Image Lab — About</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
   <style>
-    .page {max-width: 920px; margin: 24px auto; padding: 0 16px;}
-    .card {
+    .about-container {
+      max-width: 700px;
+      margin: 60px auto;
+      padding: 24px;
+    }
+    .about-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      box-shadow: var(--elev);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
     }
-    .links {display:flex; gap:14px; margin-top: 10px; flex-wrap: wrap}
-    .links a {text-decoration:none}
+    .about-logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+      border-radius: 16px;
+    }
+    .about-title {
+      font-size: 2rem;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--accent) 0%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .about-version {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-bottom: 24px;
+    }
+    .about-description {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      margin-bottom: 32px;
+    }
+    .about-features {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+      text-align: left;
+    }
+    .about-feature {
+      background: var(--bg-tertiary);
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .about-feature h4 {
+      font-size: 0.9375rem;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+    }
+    .about-feature p {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+    .about-links {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .about-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+    .about-credits {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+    .about-credits a {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><a class="link" href="{{ url_for('index') }}">← Back</a></div>
+    <div class="brand">
+      <a href="{{ url_for('index') }}" class="brand-name" style="text-decoration:none">← Image Lab</a>
+    </div>
     <div class="actions">
-      <a class="ghost" href="{{ url_for('help_page') }}">Help</a>
+      <a href="{{ url_for('help_page') }}" class="btn btn-ghost">Help</a>
     </div>
   </header>
 
-  <main class="page">
-    <div class="card">
-      <h1 style="margin-top:0">About Image Lab</h1>
-      <p>
-        Image Lab is a fast, browser-based image editor with a Python (Flask) backend.
-        It supports cropping, resizing, color adjustments, filters, background removal,
-        histogram equalization, and content-aware seam carving.
+  <main class="about-container">
+    <div class="about-card">
+      <img src="{{ url_for('static', filename='images/icon.png') }}" alt="Image Lab" class="about-logo">
+      <h1 class="about-title">Image Lab</h1>
+      <p class="about-version">Version 2.0 • Fast Online Image Editor</p>
+      
+      <p class="about-description">
+        A powerful, browser-based image editor built with Python and modern web technologies.
+        Crop, resize, apply filters, remove backgrounds, and more — all without uploading to external servers.
       </p>
-      <p><b>By Hunter</b></p>
-      <div class="links">
-        <a class="primary" href="https://hxr.life" target="_blank" rel="noopener">hxr.life</a>
-        <a class="ghost" href="https://github.com/H-Bombmxpwr/image" target="_blank" rel="noopener">GitHub: H-Bombmxpwr/image</a>
+
+      <div class="about-features">
+        <div class="about-feature">
+          <h4>🎨 Rich Editing</h4>
+          <p>Crop, rotate, resize, flip, and transform images with precision.</p>
+        </div>
+        <div class="about-feature">
+          <h4>✨ Advanced Filters</h4>
+          <p>Apply professional filters, color adjustments, and effects.</p>
+        </div>
+        <div class="about-feature">
+          <h4>🖼️ GIF Support</h4>
+          <p>Resize, trim, speed up, slow down, and reverse animated GIFs.</p>
+        </div>
+        <div class="about-feature">
+          <h4>🔒 Privacy First</h4>
+          <p>Images processed locally. Nothing stored on servers.</p>
+        </div>
       </div>
+
+      <div class="about-links">
+        <a href="https://hxr.life" target="_blank" rel="noopener" class="btn btn-primary">hxr.life</a>
+        <a href="https://github.com/H-Bombmxpwr/image" target="_blank" rel="noopener" class="btn btn-ghost">GitHub</a>
+      </div>
+
+      <div class="about-divider"></div>
+
+      <p class="about-credits">
+        Built by <a href="https://hxr.life" target="_blank" rel="noopener">Hunter</a><br>
+        Powered by Flask, Pillow, and Cropper.js
+      </p>
     </div>
   </main>
 </body>

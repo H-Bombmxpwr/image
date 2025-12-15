@@ -1,250 +1,165 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Image Lab — Help & Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
-
-
-  <!-- MathJax for LaTeX rendering -->
-  <script>
-    window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
-  </script>
-  <script id="MathJax-script" async
-          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-
   <style>
-    .doc {max-width: 1100px; margin: 24px auto; padding: 0 16px;}
-    .doc h1{margin:0 0 8px}
-    .doc h2{margin-top:28px}
-    .note{color:var(--muted)}
-    .section{margin-top:22px}
-    .split{display:grid; grid-template-columns: 1.1fr 1fr; gap:18px}
-    .eq-card{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px}
-    .eq-card h3{margin:0 0 6px}
-    .grid {display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-top:12px}
-    figure {background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:8px}
-    figure img{width:100%; height:auto; display:block; border-radius:8px}
-    figure figcaption{font-size:13px; color:var(--muted); margin-top:6px}
-    .hero img{max-width:100%; border-radius:12px}
-    .topbar .link{opacity:.85}
-    .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
+    .help-container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .help-header { margin-bottom: 32px; }
+    .help-header h1 { font-size: 2rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent) 0%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .help-section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .help-section h2 { font-size: 1.25rem; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .help-section h2 .icon { width: 24px; height: 24px; color: var(--accent); }
+    .help-section h3 { font-size: 1rem; margin: 20px 0 12px; color: var(--text-secondary); }
+    .help-section p { color: var(--text-secondary); line-height: 1.7; margin-bottom: 12px; }
+    .help-section ul { color: var(--text-secondary); padding-left: 20px; margin-bottom: 16px; }
+    .help-section li { margin-bottom: 8px; line-height: 1.6; }
+    .kbd { font-family: var(--font-mono); font-size: 0.875rem; background: var(--bg-tertiary); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+    .feature-card { background: var(--bg-tertiary); border-radius: 12px; padding: 16px; }
+    .feature-card h4 { font-size: 0.9375rem; margin-bottom: 8px; }
+    .feature-card p { font-size: 0.875rem; margin-bottom: 0; }
+    .equation { background: var(--bg-tertiary); border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-family: var(--font-mono); overflow-x: auto; }
+    .shortcut-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .shortcut-table th, .shortcut-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
+    .shortcut-table th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+    .shortcut-table td { color: var(--text-secondary); }
+    .shortcut-table td:first-child { font-family: var(--font-mono); color: var(--accent); }
+    .tip { background: rgba(99, 102, 241, 0.1); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+    .tip strong { color: var(--accent); }
   </style>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><a class="link" href="{{ url_for('index') }}">← Back to Editor</a></div>
-    <div class="actions"></div>
+    <div class="brand">
+      <a href="{{ url_for('index') }}" class="brand-name" style="text-decoration:none">← Image Lab</a>
+    </div>
+    <div class="actions">
+      <a href="{{ url_for('about_page') }}" class="btn btn-ghost">About</a>
+    </div>
   </header>
 
-  <main class="doc">
-    <h1>Image Lab — Help & Reference</h1>
-    <p class="note">
-      Examples are pre-rendered from <span class="kbd">static/images/memory.jpg</span> using
-      <span class="kbd">src/helper.py</span>. See the repo for more information.
-    </p>
+  <main class="help-container">
+    <div class="help-header">
+      <h1>Help & Reference</h1>
+      <p class="muted">Complete guide to all Image Lab features</p>
+    </div>
 
-    <!-- Original -->
-    <section class="section hero">
-      <h2>Original</h2>
-      <img src="{{ url_for('static', filename='images/help/00_original.png') }}" alt="original image">
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Getting Started</h2>
+      <p>Image Lab is a powerful browser-based image editor. Here's how to get started:</p>
+      <div class="feature-grid">
+        <div class="feature-card"><h4>1. Open an Image</h4><p>Click "Open", drag & drop, or paste with <span class="kbd">Ctrl+V</span>.</p></div>
+        <div class="feature-card"><h4>2. Edit Your Image</h4><p>Use tabs to access Basic, Adjust, Filters, and Advanced tools.</p></div>
+        <div class="feature-card"><h4>3. Export</h4><p>Choose format and quality, then Download or Copy to clipboard.</p></div>
+        <div class="feature-card"><h4>4. History</h4><p>Every change is tracked. Restore any previous state anytime.</p></div>
+      </div>
+      <div class="tip"><strong>Tip:</strong> Your work is automatically saved in your browser!</div>
     </section>
 
-    <!-- Basic Transforms -->
-    <section class="section">
-      <div class="split">
-        <div class="eq-card">
-          <h3>Basic Transforms</h3>
-          <p><b>Rotate ±90°</b> uses orthogonal rotation (no resampling blur). Arbitrary rotation uses bicubic resampling.</p>
-          <p><b>Flip H/V</b> mirrors pixels about the vertical or horizontal axis.</p>
-          <p><b>Resize</b> uses interpolation kernels:
-            <i>Nearest</i>, <i>Bilinear</i>, <i>Bicubic</i>, <i>Lanczos</i> (windowed sinc).
-          </p>
-        </div>
-        <div class="eq-card">
-          <h3>Resize Kernels</h3>
-          <p><b>Bilinear:</b> $I'(x)= \\sum w_i I_i$ (linear weights)</p>
-          <p><b>Bicubic:</b> cubic weighting in 4×4 neighborhood.</p>
-          <p><b>Lanczos:</b> $\\text{Lanczos}_a(x)=\\text{sinc}(x)\\,\\text{sinc}(x/a)$ for $|x|<a$.</p>
-        </div>
-      </div>
-      <div class="grid">
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/14_rotate_90.png') }}" alt="rotate +90">
-          <figcaption><b>Rotate +90°</b> — orthogonal rotation, expand canvas.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/15_flip_h.png') }}" alt="flip h">
-          <figcaption><b>Flip Horizontal</b> — mirror across vertical axis.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/16_resize_half.png') }}" alt="resize 50%">
-          <figcaption><b>Resize 50%</b> — contain to 50% on longest edge, Lanczos.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/17_resize_double.png') }}" alt="resize 200%">
-          <figcaption><b>Resize 200%</b> — Lanczos upsample (high quality).</figcaption>
-        </figure>
-      </div>
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Supported Formats</h2>
+      <table class="shortcut-table">
+        <thead><tr><th>Format</th><th>Import</th><th>Export</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>PNG</td><td>✓</td><td>✓</td><td>Lossless, supports transparency</td></tr>
+          <tr><td>JPEG</td><td>✓</td><td>✓</td><td>Lossy compression, no transparency</td></tr>
+          <tr><td>WebP</td><td>✓</td><td>✓</td><td>Modern format, good compression</td></tr>
+          <tr><td>GIF</td><td>✓</td><td>✓</td><td>Animated support with special tools</td></tr>
+          <tr><td>BMP</td><td>✓</td><td>✓</td><td>Uncompressed bitmap</td></tr>
+          <tr><td>TIFF</td><td>✓</td><td>✓</td><td>High quality, larger files</td></tr>
+        </tbody>
+      </table>
     </section>
 
-    <!-- Tone & Color -->
-    <section class="section">
-      <div class="split">
-        <div class="eq-card">
-          <h3>Tone & Color Adjustments</h3>
-          <ul>
-            <li><b>Brightness</b>: $I' = a\\,I$</li>
-            <li><b>Contrast</b>: $I' = a\\,(I - 128) + 128$</li>
-            <li><b>Saturation</b>: scales chroma (implemented via Pillow’s <i>Color</i> enhancer)</li>
-            <li><b>Gamma</b>: $I' = 255\\,(I/255)^{1/\\gamma}$</li>
-          </ul>
-        </div>
-        <div class="eq-card">
-          <h3>Example Parameters</h3>
-          <p>Brightness ×1.20, Contrast ×1.15, Saturation ×1.10, $\\gamma=0.9$</p>
-        </div>
-      </div>
-      <div class="grid">
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/18_adjust_b+20_c+15_s+10_g0_9.png') }}" alt="adjust bcs gamma">
-          <figcaption>
-            <b>Adjust</b> — B×1.20, C×1.15, S×1.10, $\\gamma=0.9$.
-          </figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/01_grayscale.png') }}" alt="grayscale">
-          <figcaption><b>Grayscale</b> — luminance only.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/02_sepia.png') }}" alt="sepia">
-          <figcaption><b>Sepia</b> — colorize grayscale: low=(20,10,0), high=(255,240,192).</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/03_invert.png') }}" alt="invert">
-          <figcaption><b>Invert</b> — $I' = 255 - I$.</figcaption>
-        </figure>
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg> Basic Tools</h2>
+      <h3>Crop</h3><p>Interactive cropping with drag handles. Click Apply when done.</p>
+      <h3>Flip</h3><p>Mirror horizontally (H) or vertically (V).</p>
+      <h3>Rotate</h3><p>Quick ±90° buttons or custom angle input.</p>
+      <h3>Resize</h3><p>Change dimensions with various interpolation methods:</p>
+      <ul>
+        <li><strong>Lanczos:</strong> Highest quality, best for photos</li>
+        <li><strong>Bicubic:</strong> Good quality, smooth gradients</li>
+        <li><strong>Bilinear:</strong> Fast, decent quality</li>
+        <li><strong>Nearest:</strong> Preserves hard edges (pixel art)</li>
+      </ul>
+    </section>
+
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10"/></svg> Adjust Tools</h2>
+      <h3>Brightness</h3><p>Multiply pixel values. 100% = no change.</p>
+      <div class="equation">I' = factor × I</div>
+      <h3>Contrast</h3><p>Adjust difference between light and dark areas.</p>
+      <div class="equation">I' = factor × (I - 128) + 128</div>
+      <h3>Saturation</h3><p>Color intensity. 0% = grayscale.</p>
+      <h3>Gamma</h3><p>Non-linear brightness. &lt;1 brightens, &gt;1 darkens midtones.</p>
+      <div class="equation">I' = 255 × (I/255)^(1/γ)</div>
+      <h3>Temperature</h3><p>Warm (positive) or cool (negative) color shift.</p>
+      <h3>Auto Enhance</h3><p>Automatic contrast optimization.</p>
+    </section>
+
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filters</h2>
+      <div class="feature-grid">
+        <div class="feature-card"><h4>Grayscale</h4><p>Convert to black and white.</p></div>
+        <div class="feature-card"><h4>Sepia</h4><p>Warm vintage tones.</p></div>
+        <div class="feature-card"><h4>Invert</h4><p>Create a negative image.</p></div>
+        <div class="feature-card"><h4>Sharpen</h4><p>Enhance edges and details.</p></div>
+        <div class="feature-card"><h4>Edges</h4><p>Sobel edge detection.</p></div>
+        <div class="feature-card"><h4>Emboss</h4><p>3D relief effect.</p></div>
+        <div class="feature-card"><h4>Gaussian Blur</h4><p>Smooth blur with radius control.</p></div>
+        <div class="feature-card"><h4>Median</h4><p>Noise reduction, preserves edges.</p></div>
+        <div class="feature-card"><h4>Posterize</h4><p>Reduce color depth.</p></div>
+        <div class="feature-card"><h4>Pixelate</h4><p>Blocky pixel effect.</p></div>
       </div>
     </section>
 
-    <!-- Filters -->
-    <section class="section">
-      <div class="split">
-        <div class="eq-card">
-          <h3>Filters</h3>
-          <p><b>Gaussian Blur</b> (radius $\\sigma$):</p>
-          <p style="margin-left:8px;">$G(x,y) = \\dfrac{1}{2\\pi\\sigma^2} e^{-\\frac{x^2+y^2}{2\\sigma^2}}$</p>
-          <p><b>Median</b> (odd window size): replaces each pixel with the median of its neighborhood.</p>
-          <p><b>Unsharp Mask</b>: $I' = I + k\\,(I - G_{\\sigma}(I))$</p>
-          <p><b>Sobel Edges</b>: $|\\nabla I| = \\sqrt{(I * S_x)^2 + (I * S_y)^2}$</p>
-          <p><b>Emboss</b>: directional high-pass convolution (relief effect).</p>
-          <p><b>Posterize</b>: quantize to $b$ bits/channel ($2^b$ levels).</p>
-          <p><b>Pixelate</b>: downsample to blocks, upsample with nearest neighbor.</p>
-        </div>
-        <div class="eq-card">
-          <h3>Parameters Used in Examples</h3>
-          <ul>
-            <li>Gaussian: $\\sigma=1.5$ and $\\sigma=3.0$</li>
-            <li>Median: size 3×3</li>
-            <li>Unsharp: radius 2.0, amount 150%, threshold 3</li>
-            <li>Posterize: 4 bits/channel</li>
-            <li>Pixelate: block size 8 px</li>
-          </ul>
-        </div>
-      </div>
-      <div class="grid">
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/04_gaussian_1_5.png') }}" alt="gaussian 1.5">
-          <figcaption><b>Gaussian blur</b> — $\\sigma=1.5$ px.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/05_gaussian_3.png') }}" alt="gaussian 3">
-          <figcaption><b>Gaussian blur</b> — $\\sigma=3.0$ px.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/06_median_3.png') }}" alt="median 3">
-          <figcaption><b>Median</b> — size 3×3.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/07_sharpen.png') }}" alt="unsharp">
-          <figcaption><b>Unsharp Mask</b> — radius 2.0, amount 150%, threshold 3.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/08_edges.png') }}" alt="edges">
-          <figcaption><b>Edges</b> — Sobel magnitude.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/09_emboss.png') }}" alt="emboss">
-          <figcaption><b>Emboss</b> — directional high-pass.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/10_posterize_4bits.png') }}" alt="posterize 4">
-          <figcaption><b>Posterize</b> — 4 bits/channel (16 levels).</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/11_pixelate_8px.png') }}" alt="pixelate 8">
-          <figcaption><b>Pixelate</b> — block size 8 px (nearest upsample).</figcaption>
-        </figure>
-      </div>
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> Advanced Tools</h2>
+      <h3>Histogram Equalization</h3><p>Spread intensities for better contrast.</p>
+      <h3>Background Removal (Simple)</h3><p>Remove solid backgrounds by color tolerance.</p>
+      {% if has_rembg %}<h3>AI Background Removal</h3><p>Deep learning for precise subject isolation.</p>{% endif %}
+      <h3>Vignette</h3><p>Darken corners for focus effect.</p>
+      <h3>Border</h3><p>Add solid color border.</p>
+      <h3>Watermark</h3><p>Add text overlay with position and opacity controls.</p>
+      {% if has_seam %}<h3>Seam Carving</h3><p>Content-aware resize that preserves important features.</p>{% endif %}
     </section>
 
-    <!-- Histogram Equalization & Background Removal -->
-    <section class="section">
-      <div class="split">
-        <div class="eq-card">
-          <h3>Histogram Equalization</h3>
-          <p>Compute luminance CDF $C(i)=\\sum_{j\\le i} h(j)$ and map with</p>
-          <p style="margin-left:8px;">$I' = \\text{round}\\left( \\dfrac{C(I)-C_{\\min}}{(W\\cdot H) - C_{\\min}} \\cdot (L-1) \\right)$</p>
-          <p>spreading intensities across levels $L$.</p>
-        </div>
-        <div class="eq-card">
-          <h3>Background Removal</h3>
-          <p>Estimate border mean color $\\mu$; remove pixels with</p>
-          <p style="margin-left:8px;">$\\lVert I(x)-\\mu \\rVert_2 &lt; T$</p>
-          <p>where $T$ is set by tolerance (here: 18%).</p>
-        </div>
-      </div>
-      <div class="grid">
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/12_hist_eq.png') }}" alt="hist eq">
-          <figcaption><b>Histogram Equalization</b> — luminance channel equalized.</figcaption>
-        </figure>
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/13_background_remove.png') }}" alt="bg remove">
-          <figcaption><b>Background Removal</b> — tolerance 18%, border-mean color keying (RGBA output).</figcaption>
-        </figure>
-      </div>
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><path d="M7 2v20"/><path d="M17 2v20"/></svg> GIF Tools</h2>
+      <ul>
+        <li><strong>Resize GIF:</strong> Scale while preserving frames and timing</li>
+        <li><strong>Trim Frames:</strong> Remove frames from start/end</li>
+        <li><strong>Speed:</strong> Adjust playback speed (0.5x to 4x)</li>
+        <li><strong>Reverse:</strong> Play backwards</li>
+      </ul>
     </section>
 
-    <!-- Seam Carving -->
-    <section class="section">
-      <div class="split">
-        <div class="eq-card">
-          <h3>Seam Carving</h3>
-          <p>Compute an energy map, e.g. gradient magnitude $E=|\\nabla I|$, then find a connected seam of minimum cumulative energy with dynamic programming:</p>
-          <p style="margin-left:8px;">$M(i,j) = E(i,j) + \\min\\{ M(i-1,j-1),\\ M(i-1,j),\\ M(i-1,j+1) \\}$</p>
-          <p>Remove (or insert) low-energy seams to change dimensions while preserving salient content.</p>
-        </div>
-        <div class="eq-card">
-          <h3>Backend</h3>
-          <p>Using backend: <b>{{ seam_backend }}</b>{% if not has_seam %} (seam-carving not installed; example uses Lanczos fallback){% endif %}.</p>
-        </div>
-      </div>
-      <div class="grid">
-        {% if has_seam %}
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/19_seamcarve_w70.png') }}" alt="seam carve">
-          <figcaption><b>Seam Carve</b> — target width = 70% of original (width-first, backward energy).</figcaption>
-        </figure>
-        {% else %}
-        <figure>
-          <img src="{{ url_for('static', filename='images/help/19_resize_w70_lanczos.png') }}" alt="resize w70 fallback">
-          <figcaption><b>Resize (fallback)</b> — width = 70% with Lanczos (no seam-carving available).</figcaption>
-        </figure>
-        {% endif %}
-      </div>
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 16h10"/></svg> Shortcuts</h2>
+      <table class="shortcut-table">
+        <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Ctrl+V</td><td>Paste image from clipboard</td></tr>
+          <tr><td>Drop file</td><td>Open dropped image</td></tr>
+          <tr><td>Click canvas</td><td>Open file picker</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Technical Info</h2>
+      <p><strong>Backend:</strong> Python/Flask with Pillow</p>
+      <p><strong>Seam Carving:</strong> {{ seam_backend }}</p>
+      {% if has_rembg %}<p><strong>AI Background:</strong> rembg with U²-Net</p>{% endif %}
+      <div class="tip"><strong>Privacy:</strong> Images are processed in memory only and not stored on our servers.</div>
     </section>
   </main>
 </body>
