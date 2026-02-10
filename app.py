@@ -12,15 +12,19 @@ from src.ops import (
     auto_enhance, vignette_img, add_border, add_watermark
 )
 from src.gif_ops import (
-    HAS_GIF, resize_gif, trim_gif, extract_gif_frames, 
+    HAS_GIF, resize_gif, trim_gif, extract_gif_frames,
     change_gif_speed, reverse_gif, gif_to_frames_zip
 )
 from src.seam import HAS_SEAM, SEAM_BACKEND, seam_carve
 from src.bg_remove import HAS_REMBG, remove_bg_ai
 from src.exporter import prepare_download
+from src.heif_support import register_heif
+
+register_heif()
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-prod")
+app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024  # 32 MB upload limit
 
 # ---------- pages ----------
 @app.get("/")
@@ -190,6 +194,26 @@ def api_write_metadata():
     out = write_exif(img, metadata)
     return jsonify({"img": image_to_dataurl(out)})
 
+@app.post("/api/metadata_read")
+def api_metadata_read():
+    d = request.json
+    img = b64_to_image(d["image"])
+    return jsonify({"meta": exif_to_dict(img)})
+
+@app.post("/api/metadata_write")
+def api_metadata_write():
+    d = request.json
+    img = b64_to_image(d["image"])
+    updates = d.get("updates", {})
+    out = write_exif(img, updates)
+    return jsonify({"img": image_to_dataurl(out), "meta": exif_to_dict(out)})
+
+@app.post("/api/normalize")
+def api_normalize():
+    d = request.json
+    img = b64_to_image(d["image"])
+    return jsonify({"img": image_to_dataurl(img, "PNG")})
+
 # GIF endpoints
 @app.post("/api/gif/resize")
 def api_gif_resize():
@@ -237,10 +261,10 @@ def api_gif_info():
     if not HAS_GIF:
         return jsonify({"error": "GIF support not available"}), 400
     d = request.json
-    frames = extract_gif_frames(d["image"])
+    frames = extract_gif_frames(d["image"], max_frames=10)
     return jsonify({
         "frame_count": len(frames),
-        "frames": frames[:10]  # Return first 10 frame previews
+        "frames": frames
     })
 
 @app.post("/api/export")
@@ -254,12 +278,14 @@ def api_export():
     return send_file(buf, mimetype=mime, as_attachment=True, download_name=f"edited.{fmt_key}")
 
 
-app.config.update(
-    TEMPLATES_AUTO_RELOAD=True,
-    SEND_FILE_MAX_AGE_DEFAULT=0
-)
+IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PRODUCTION")
 
-if app.debug:
+if not IS_PRODUCTION:
+    app.config.update(
+        TEMPLATES_AUTO_RELOAD=True,
+        SEND_FILE_MAX_AGE_DEFAULT=0
+    )
+
     @app.after_request
     def _no_cache(resp):
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -269,4 +295,5 @@ if app.debug:
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)),
+            debug=not IS_PRODUCTION)

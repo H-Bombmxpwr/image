@@ -81,7 +81,8 @@ export function wireOpeners() {
       
       await refreshInspect();
       saveState();
-      
+
+      document.dispatchEvent(new CustomEvent('imagelab:new-image'));
       showToast(`Opened: ${file.name}`, 'success');
     } catch (e) {
       console.error('Failed to open file:', e);

@@ -1,8 +1,41 @@
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageDraw, ImageFont
 import numpy as np
-import colorsys
 from .compat import Resampling
 from .io_utils import image_to_dataurl, resample_from_name, ALLOWED_EXPORT
+
+
+def _rgb_to_hsv(arr):
+    """Vectorized RGB [0-1 float] to HSV conversion (NumPy)."""
+    r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
+    maxc = np.maximum(np.maximum(r, g), b)
+    minc = np.minimum(np.minimum(r, g), b)
+    v = maxc
+    s = np.where(maxc != 0, (maxc - minc) / maxc, 0.0)
+    diff = maxc - minc
+    diff_safe = np.where(diff == 0, 1.0, diff)
+    rc = (maxc - r) / diff_safe
+    gc = (maxc - g) / diff_safe
+    bc = (maxc - b) / diff_safe
+    h = np.where(r == maxc, bc - gc,
+        np.where(g == maxc, 2.0 + rc - bc, 4.0 + gc - rc))
+    h = (h / 6.0) % 1.0
+    h = np.where(diff == 0, 0.0, h)
+    return np.stack([h, s, v], axis=-1)
+
+
+def _hsv_to_rgb(arr):
+    """Vectorized HSV to RGB [0-1 float] conversion (NumPy)."""
+    h, s, v = arr[..., 0], arr[..., 1], arr[..., 2]
+    i = (h * 6.0).astype(np.int32)
+    f = h * 6.0 - i
+    p = v * (1.0 - s)
+    q = v * (1.0 - s * f)
+    t = v * (1.0 - s * (1.0 - f))
+    i_mod = i % 6
+    r = np.choose(i_mod, [v, q, p, p, t, v])
+    g = np.choose(i_mod, [t, v, v, q, p, p])
+    b = np.choose(i_mod, [p, p, t, v, v, q])
+    return np.stack([r, g, b], axis=-1)
 
 def convert_img(img: Image.Image, to_key: str, quality: int):
     """Convert image to a different format."""
@@ -137,18 +170,13 @@ def apply_adjust(img: Image.Image, b: float, c: float, s: float, g: float,
         lut = [min(255, int((i / 255.0) ** (1.0 / g) * 255 + 0.5)) for i in range(256)]
         img = img.point(lut * 3)
     
-    # Hue shift
+    # Hue shift (vectorized)
     if abs(hue) > 1e-3:
         arr = np.array(img, dtype=np.float32) / 255.0
-        # Convert RGB to HSV
-        for i in range(arr.shape[0]):
-            for j in range(arr.shape[1]):
-                r, g_val, b_val = arr[i, j]
-                h, s_val, v = colorsys.rgb_to_hsv(r, g_val, b_val)
-                h = (h + hue / 360.0) % 1.0
-                r, g_val, b_val = colorsys.hsv_to_rgb(h, s_val, v)
-                arr[i, j] = [r, g_val, b_val]
-        img = Image.fromarray((arr * 255).astype(np.uint8))
+        hsv = _rgb_to_hsv(arr)
+        hsv[:, :, 0] = (hsv[:, :, 0] + hue / 360.0) % 1.0
+        arr = _hsv_to_rgb(hsv)
+        img = Image.fromarray((np.clip(arr, 0, 1) * 255).astype(np.uint8))
     
     # Temperature adjustment (warm/cool)
     if abs(temperature) > 1e-3:
@@ -168,19 +196,23 @@ def apply_adjust(img: Image.Image, b: float, c: float, s: float, g: float,
     return img
 
 def hist_equalize(img: Image.Image):
-    """Apply histogram equalization."""
+    """Apply histogram equalization preserving color via YCbCr."""
+    alpha = None
     if img.mode == "RGBA":
-        rgb = img.convert("RGB")
-        y = ImageOps.grayscale(rgb)
-        y = ImageOps.equalize(y)
-        result = Image.merge("RGB", (y,) * 3)
+        alpha = img.split()[-1]
+        img = img.convert("RGB")
+    elif img.mode != "RGB":
+        img = img.convert("RGB")
+
+    ycbcr = img.convert("YCbCr")
+    y, cb, cr = ycbcr.split()
+    y = ImageOps.equalize(y)
+    result = Image.merge("YCbCr", (y, cb, cr)).convert("RGB")
+
+    if alpha is not None:
         result = result.convert("RGBA")
-        result.putalpha(img.split()[-1])
-        return result
-    else:
-        y = ImageOps.grayscale(img.convert("RGB"))
-        y = ImageOps.equalize(y)
-        return Image.merge("RGB", (y,) * 3)
+        result.putalpha(alpha)
+    return result
 
 def remove_background(img: Image.Image, tol: float):
     """Remove solid background using border color sampling."""

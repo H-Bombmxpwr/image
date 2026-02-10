@@ -27,7 +27,7 @@
     </div>
     <div class="actions">
       <label class="btn file-btn">
-        <input id="fileInput" type="file" accept="image/*,.bmp,.tiff,.gif">
+        <input id="fileInput" type="file" accept="image/*,.bmp,.tiff,.gif,.webp,.heic,.heif">
         <span>Open</span>
       </label>
       <button id="btnPaste" class="btn btn-ghost">Paste</button>
@@ -58,7 +58,7 @@
             <path d="m21 15-5-5L5 21"/>
           </svg>
           <div class="drop-hint-text">Drop an image here, or click to open</div>
-          <div class="drop-hint-sub">PNG, JPEG, WEBP, GIF, BMP, TIFF • Paste with Ctrl+V</div>
+          <div class="drop-hint-sub">PNG, JPEG, WEBP, GIF, BMP, TIFF, HEIC • Paste with Ctrl+V</div>
         </div>
       </div>
 
@@ -80,6 +80,14 @@
         </div>
         <div class="metadata-content">
           <div id="exifContent" class="metadata-empty">No metadata available</div>
+          <div style="margin-top:12px">
+            <textarea id="metaEditor" class="input" rows="6" placeholder='{"artist":"...","copyright":"..."}'
+              style="width:100%;font-family:var(--font-mono);font-size:0.8rem;resize:vertical"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="metaLoad" class="btn btn-ghost" style="flex:1">Load from Image</button>
+              <button id="metaWrite" class="btn" style="flex:1">Write Metadata</button>
+            </div>
+          </div>
         </div>
       </div>
 

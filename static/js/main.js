@@ -9,6 +9,7 @@ import { wireAdvanced } from './advanced.js';
 import { wireGif } from './gif.js';
 import { wireCropper } from './cropper.js';
 import { wireExporter } from './exporter.js';
+import { wireMetadata } from './metadata.js';
 
 (async function start() {
   // Try to restore session
@@ -25,6 +26,7 @@ import { wireExporter } from './exporter.js';
   wireGif();
   wireCropper();
   wireExporter();
+  wireMetadata();
 
   // Boot with checkerboard if no session restored
   if (!restored) {

@@ -1,42 +1,43 @@
-// static/js/metadata.js
 import { postJSON } from './api.js';
-import { pushHistory, refreshInspect } from './state.js';
+import { CURRENT, setCurrent, loadDataURLToCanvas, pushHistory, refreshInspect, showToast } from './state.js';
 
 let ORIGINAL_META = {};
 
 async function loadMeta() {
-  if (!window.CURRENT) return;
-  const j = await postJSON('/api/metadata_read', { image: window.CURRENT });
-  ORIGINAL_META = j.meta || {};
-  const orig = document.getElementById('metaOriginal');
-  const curr = document.getElementById('metaCurrent');
-  const editor = document.getElementById('metaEditor');
-  if (orig)  orig.textContent  = JSON.stringify(ORIGINAL_META, null, 2);
-  if (curr)  curr.textContent  = JSON.stringify(ORIGINAL_META, null, 2);
-  if (editor) editor.value     = JSON.stringify(ORIGINAL_META, null, 2);
+  if (!CURRENT) return;
+  try {
+    const j = await postJSON('/api/metadata_read', { image: CURRENT });
+    ORIGINAL_META = j.meta || {};
+    const editor = document.getElementById('metaEditor');
+    if (editor) editor.value = JSON.stringify(ORIGINAL_META, null, 2);
+    showToast('Metadata loaded', 'success');
+  } catch (e) {
+    showToast('Failed to load metadata', 'error');
+  }
 }
 
 async function writeMeta() {
-  if (!window.CURRENT) return;
+  if (!CURRENT) return;
   const editor = document.getElementById('metaEditor');
   let updates = {};
-  try { updates = JSON.parse(editor.value || "{}"); } catch (_) { updates = {}; }
-  const j = await postJSON('/api/metadata_write', { image: window.CURRENT, updates });
-  window.CURRENT = j.img;
-  // Show updated "current" (original stays as the first-read snapshot)
-  const curr = document.getElementById('metaCurrent');
-  if (curr) curr.textContent = JSON.stringify(j.meta || {}, null, 2);
-  pushHistory('Metadata updated');
-  await refreshInspect(); // keep info panel in sync
+  try { updates = JSON.parse(editor?.value || "{}"); } catch (_) {
+    showToast('Invalid JSON in metadata editor', 'error');
+    return;
+  }
+  try {
+    const j = await postJSON('/api/metadata_write', { image: CURRENT, updates });
+    setCurrent(j.img);
+    loadDataURLToCanvas(j.img);
+    pushHistory('Metadata updated');
+    await refreshInspect();
+    showToast('Metadata written', 'success');
+  } catch (e) {
+    showToast('Failed to write metadata', 'error');
+  }
 }
 
-export function wireMetadata(){
-  // load when a new image opens
+export function wireMetadata() {
   document.addEventListener('imagelab:new-image', loadMeta);
-
-  // "Load from image" (optional button) — re-read current EXIF
   document.getElementById('metaLoad')?.addEventListener('click', loadMeta);
-
-  // "Write" button
   document.getElementById('metaWrite')?.addEventListener('click', writeMeta);
 }

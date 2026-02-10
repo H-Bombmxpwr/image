@@ -40,25 +40,28 @@ def _gif_to_b64(frames: list, durations: list, loop: int = 0) -> str:
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
     return f"data:image/gif;base64,{b64}"
 
-def extract_gif_frames(data_url: str) -> list:
-    """Extract all frames from a GIF as base64 data URLs."""
+def extract_gif_frames(data_url: str, max_frames: int = 0) -> list:
+    """Extract frames from a GIF as base64 data URLs.
+
+    If max_frames > 0, only extract up to that many frames.
+    """
     img = _b64_to_gif(data_url)
     frames = []
-    
+
     try:
         n_frames = getattr(img, "n_frames", 1)
-        for i in range(n_frames):
+        limit = min(n_frames, max_frames) if max_frames > 0 else n_frames
+        for i in range(limit):
             img.seek(i)
             frame = img.copy().convert("RGBA")
-            
-            # Convert frame to base64
+
             buf = io.BytesIO()
             frame.save(buf, format="PNG")
             b64 = base64.b64encode(buf.getvalue()).decode("ascii")
             frames.append(f"data:image/png;base64,{b64}")
     except EOFError:
         pass
-    
+
     return frames
 
 def resize_gif(data_url: str, width: int, height: int, keep_aspect: bool = True) -> str:

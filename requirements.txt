@@ -4,9 +4,11 @@ Werkzeug==3.0.3
 itsdangerous==2.2.0
 Jinja2==3.1.4
 MarkupSafe==2.1.5
+gunicorn>=21.2.0
 
 # --- Imaging core ---
 Pillow==10.4.0
+pillow-heif>=0.16.0
 
 # --- Numeric stack (wheels available for Py 3.12) ---
 numpy==2.0.2
@@ -16,9 +18,8 @@ scipy==1.13.1
 # Primary backend used by the app:
 seam-carving>=0.1.2
 
-# Fallback backend (app will auto-use if seam-carving is missing or fails):
-scikit-image==0.24.0
-
+# Fallback backend (optional, heavy dependency):
+# scikit-image==0.24.0
 
 # Optional dependencies
-rembg>=2.0  # For AI background removal
+# rembg>=2.0  # For AI background removal (install separately if needed)

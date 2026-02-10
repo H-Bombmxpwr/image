@@ -79,6 +79,7 @@ export function setFileName(name) {
   FILE_NAME = (name || 'untitled').replace(/[\\/:*?"<>|]/g, '_');
   const el = document.getElementById('fileName');
   if (el) el.textContent = FILE_NAME;
+  document.title = FILE_NAME === 'untitled' ? 'Image Lab' : `${FILE_NAME} \u2014 Image Lab`;
 }
 
 export function getFileName() {

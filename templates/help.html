@@ -74,6 +74,7 @@
           <tr><td>GIF</td><td>✓</td><td>✓</td><td>Animated support with special tools</td></tr>
           <tr><td>BMP</td><td>✓</td><td>✓</td><td>Uncompressed bitmap</td></tr>
           <tr><td>TIFF</td><td>✓</td><td>✓</td><td>High quality, larger files</td></tr>
+          <tr><td>HEIC / HEIF</td><td>✓</td><td></td><td>Apple format, converted to PNG for display</td></tr>
         </tbody>
       </table>
     </section>
@@ -83,6 +84,7 @@
       <h3>Crop</h3><p>Interactive cropping with drag handles. Click Apply when done.</p>
       <h3>Flip</h3><p>Mirror horizontally (H) or vertically (V).</p>
       <h3>Rotate</h3><p>Quick ±90° buttons or custom angle input.</p>
+      <h3>Rename</h3><p>Change the file name used for downloads.</p>
       <h3>Resize</h3><p>Change dimensions with various interpolation methods:</p>
       <ul>
         <li><strong>Lanczos:</strong> Highest quality, best for photos</li>
@@ -94,6 +96,7 @@
 
     <section class="help-section">
       <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10"/></svg> Adjust Tools</h2>
+      <p>Sliders auto-apply when you release them. Adjustments are always applied to the image state before you started adjusting, so you can freely experiment without cumulative degradation.</p>
       <h3>Brightness</h3><p>Multiply pixel values. 100% = no change.</p>
       <div class="equation">I' = factor × I</div>
       <h3>Contrast</h3><p>Adjust difference between light and dark areas.</p>
@@ -101,12 +104,14 @@
       <h3>Saturation</h3><p>Color intensity. 0% = grayscale.</p>
       <h3>Gamma</h3><p>Non-linear brightness. &lt;1 brightens, &gt;1 darkens midtones.</p>
       <div class="equation">I' = 255 × (I/255)^(1/γ)</div>
+      <h3>Hue Shift</h3><p>Rotate all colors around the color wheel. Useful for creative color grading.</p>
       <h3>Temperature</h3><p>Warm (positive) or cool (negative) color shift.</p>
-      <h3>Auto Enhance</h3><p>Automatic contrast optimization.</p>
+      <h3>Auto Enhance</h3><p>Automatic contrast optimization using auto-contrast with 1% cutoff.</p>
     </section>
 
     <section class="help-section">
       <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filters</h2>
+      <p>Filters auto-apply when you check a box or change a value. Like adjustments, they apply from your base image state.</p>
       <div class="feature-grid">
         <div class="feature-card"><h4>Grayscale</h4><p>Convert to black and white.</p></div>
         <div class="feature-card"><h4>Sepia</h4><p>Warm vintage tones.</p></div>
@@ -114,6 +119,10 @@
         <div class="feature-card"><h4>Sharpen</h4><p>Enhance edges and details.</p></div>
         <div class="feature-card"><h4>Edges</h4><p>Sobel edge detection.</p></div>
         <div class="feature-card"><h4>Emboss</h4><p>3D relief effect.</p></div>
+        <div class="feature-card"><h4>Contour</h4><p>Outline edges in the image.</p></div>
+        <div class="feature-card"><h4>Smooth</h4><p>Reduce noise with smoothing.</p></div>
+        <div class="feature-card"><h4>Detail</h4><p>Enhance fine details.</p></div>
+        <div class="feature-card"><h4>Solarize</h4><p>Invert tones above a threshold for a surreal look.</p></div>
         <div class="feature-card"><h4>Gaussian Blur</h4><p>Smooth blur with radius control.</p></div>
         <div class="feature-card"><h4>Median</h4><p>Noise reduction, preserves edges.</p></div>
         <div class="feature-card"><h4>Posterize</h4><p>Reduce color depth.</p></div>
@@ -123,13 +132,24 @@
 
     <section class="help-section">
       <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> Advanced Tools</h2>
-      <h3>Histogram Equalization</h3><p>Spread intensities for better contrast.</p>
+      <h3>Histogram Equalization</h3><p>Spread intensities for better contrast while preserving color information.</p>
       <h3>Background Removal (Simple)</h3><p>Remove solid backgrounds by color tolerance.</p>
       {% if has_rembg %}<h3>AI Background Removal</h3><p>Deep learning for precise subject isolation.</p>{% endif %}
       <h3>Vignette</h3><p>Darken corners for focus effect.</p>
       <h3>Border</h3><p>Add solid color border.</p>
       <h3>Watermark</h3><p>Add text overlay with position and opacity controls.</p>
       {% if has_seam %}<h3>Seam Carving</h3><p>Content-aware resize that preserves important features.</p>{% endif %}
+    </section>
+
+    <section class="help-section">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Metadata / EXIF</h2>
+      <p>View and edit EXIF metadata embedded in your images. The metadata panel below the canvas lets you:</p>
+      <ul>
+        <li><strong>View:</strong> See all EXIF tags (camera, date, GPS, etc.) in the info table</li>
+        <li><strong>Load:</strong> Read current metadata into the editor as JSON</li>
+        <li><strong>Edit:</strong> Modify JSON fields like artist, copyright, description, software, datetime, make, model</li>
+        <li><strong>Write:</strong> Save your changes back into the image</li>
+      </ul>
     </section>
 
     <section class="help-section">
