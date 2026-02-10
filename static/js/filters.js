@@ -29,6 +29,24 @@ function hasAnyFilter(p) {
          p.posterize > 0 || p.pixelate > 1 || p.solarize > 0;
 }
 
+function buildDescription(p) {
+  const parts = [];
+  if (p.grayscale) parts.push('Grayscale');
+  if (p.sepia) parts.push('Sepia');
+  if (p.invert) parts.push('Invert');
+  if (p.sharpen) parts.push('Sharpen');
+  if (p.edge) parts.push('Edges');
+  if (p.emboss) parts.push('Emboss');
+  if (p.contour) parts.push('Contour');
+  if (p.smooth) parts.push('Smooth');
+  if (p.gaussian) parts.push(`Gaussian(${p.gaussian_radius})`);
+  if (p.median) parts.push(`Median(${p.median_size})`);
+  if (p.posterize > 0) parts.push(`Posterize(${p.posterize})`);
+  if (p.pixelate > 1) parts.push(`Pixelate(${p.pixelate})`);
+  if (p.solarize > 0) parts.push(`Solarize(${p.solarize})`);
+  return parts.join(', ');
+}
+
 function resetControls() {
   ['fGrayscale', 'fSepia', 'fInvert', 'fSharpen', 'fEdge', 'fEmboss',
    'fContour', 'fSmooth', 'fGaussian', 'fMedian'].forEach(id => {
@@ -44,7 +62,34 @@ function resetControls() {
   baseSnapshot = null;
 }
 
-async function applyFilters() {
+// Live preview — re-applies all currently checked filters from the base
+// Check = adds filter, uncheck = removes it. No history, no reset.
+async function previewFilters() {
+  if (!baseSnapshot) baseSnapshot = CURRENT;
+  const payload = buildPayload();
+
+  // If nothing is checked, restore the base image
+  if (!hasAnyFilter(payload)) {
+    setCurrent(baseSnapshot);
+    loadDataURLToCanvas(baseSnapshot);
+    await refreshInspect();
+    return;
+  }
+
+  payload.image = baseSnapshot;
+
+  try {
+    const j = await postJSON('/api/filters', payload);
+    setCurrent(j.img);
+    loadDataURLToCanvas(j.img);
+    await refreshInspect();
+  } catch (e) {
+    showToast('Filter application failed', 'error');
+  }
+}
+
+// Commit — pushes history and resets controls
+async function commitFilters() {
   if (!baseSnapshot) baseSnapshot = CURRENT;
   const payload = buildPayload();
   if (!hasAnyFilter(payload)) return;
@@ -56,23 +101,7 @@ async function applyFilters() {
     setCurrent(j.img);
     loadDataURLToCanvas(j.img);
     await refreshInspect();
-
-    const parts = [];
-    if (payload.grayscale) parts.push('Grayscale');
-    if (payload.sepia) parts.push('Sepia');
-    if (payload.invert) parts.push('Invert');
-    if (payload.sharpen) parts.push('Sharpen');
-    if (payload.edge) parts.push('Edges');
-    if (payload.emboss) parts.push('Emboss');
-    if (payload.contour) parts.push('Contour');
-    if (payload.smooth) parts.push('Smooth');
-    if (payload.gaussian) parts.push(`Gaussian(${payload.gaussian_radius})`);
-    if (payload.median) parts.push(`Median(${payload.median_size})`);
-    if (payload.posterize > 0) parts.push(`Posterize(${payload.posterize})`);
-    if (payload.pixelate > 1) parts.push(`Pixelate(${payload.pixelate})`);
-    if (payload.solarize > 0) parts.push(`Solarize(${payload.solarize})`);
-
-    pushHistory(`Filters: ${parts.join(', ')}`);
+    pushHistory(`Filters: ${buildDescription(payload)}`);
     resetControls();
   } catch (e) {
     showToast('Filter application failed', 'error');
@@ -80,7 +109,7 @@ async function applyFilters() {
 }
 
 export function wireFilters() {
-  // Checkboxes — auto-apply on change
+  // Checkboxes — live preview on check/uncheck
   const checkboxIds = [
     'fGrayscale', 'fSepia', 'fInvert', 'fSharpen', 'fEdge',
     'fEmboss', 'fContour', 'fSmooth', 'fGaussian', 'fMedian'
@@ -90,20 +119,20 @@ export function wireFilters() {
     if (!el) return;
     el.addEventListener('change', () => {
       if (!baseSnapshot && CURRENT) baseSnapshot = CURRENT;
-      applyFilters();
+      previewFilters();
     });
   });
 
-  // Number inputs — auto-apply on change
+  // Number inputs — live preview on change
   ['fGaussR', 'fMedianSize', 'fPoster', 'fPixel', 'fSolarize'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('change', () => {
       if (!baseSnapshot && CURRENT) baseSnapshot = CURRENT;
-      applyFilters();
+      previewFilters();
     });
   });
 
-  // Keep button as fallback
-  document.getElementById('btnFilters')?.addEventListener('click', () => applyFilters());
+  // Apply button — commits to history and resets
+  document.getElementById('btnFilters')?.addEventListener('click', () => commitFilters());
 }

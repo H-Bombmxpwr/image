@@ -33,7 +33,51 @@ function resetSliders() {
   baseSnapshot = null;
 }
 
-async function applyAdjust() {
+function buildDescription() {
+  const v = getSliderValues();
+  const parts = [];
+  if (Math.abs(v.b - 1) > 0.01) parts.push(`B:${Math.round(v.b * 100)}%`);
+  if (Math.abs(v.c - 1) > 0.01) parts.push(`C:${Math.round(v.c * 100)}%`);
+  if (Math.abs(v.s - 1) > 0.01) parts.push(`S:${Math.round(v.s * 100)}%`);
+  if (Math.abs(v.g - 1) > 0.01) parts.push(`\u03B3:${v.g.toFixed(2)}`);
+  if (Math.abs(v.temp) > 0) parts.push(`T:${v.temp > 0 ? '+' : ''}${v.temp}`);
+  return parts.join(', ');
+}
+
+// Live preview — re-applies all slider values from the base snapshot
+// Does NOT commit to history or reset sliders
+async function previewAdjust() {
+  if (!baseSnapshot) baseSnapshot = CURRENT;
+  const v = getSliderValues();
+
+  // If everything is back to default, restore the base
+  if (isDefault(v)) {
+    setCurrent(baseSnapshot);
+    loadDataURLToCanvas(baseSnapshot);
+    await refreshInspect();
+    return;
+  }
+
+  try {
+    const j = await postJSON('/api/adjust', {
+      image: baseSnapshot,
+      brightness: v.b,
+      contrast: v.c,
+      saturation: v.s,
+      gamma: v.g,
+      temperature: v.temp
+    });
+
+    setCurrent(j.img);
+    loadDataURLToCanvas(j.img);
+    await refreshInspect();
+  } catch (e) {
+    showToast('Adjustment failed', 'error');
+  }
+}
+
+// Commit — pushes history, resets base and sliders
+async function commitAdjust() {
   if (!baseSnapshot) baseSnapshot = CURRENT;
   const v = getSliderValues();
   if (isDefault(v)) return;
@@ -51,15 +95,7 @@ async function applyAdjust() {
     setCurrent(j.img);
     loadDataURLToCanvas(j.img);
     await refreshInspect();
-
-    const parts = [];
-    if (Math.abs(v.b - 1) > 0.01) parts.push(`B:${Math.round(v.b * 100)}%`);
-    if (Math.abs(v.c - 1) > 0.01) parts.push(`C:${Math.round(v.c * 100)}%`);
-    if (Math.abs(v.s - 1) > 0.01) parts.push(`S:${Math.round(v.s * 100)}%`);
-    if (Math.abs(v.g - 1) > 0.01) parts.push(`\u03B3:${v.g.toFixed(2)}`);
-    if (Math.abs(v.temp) > 0) parts.push(`T:${v.temp > 0 ? '+' : ''}${v.temp}`);
-
-    pushHistory(`Adjust: ${parts.join(', ')}`);
+    pushHistory(`Adjust: ${buildDescription()}`);
     resetSliders();
   } catch (e) {
     showToast('Adjustment failed', 'error');
@@ -80,18 +116,18 @@ export function wireAdjust() {
     const display = document.getElementById(valId);
     if (!slider || !display) return;
 
-    // Live value display
+    // Live value display while dragging
     slider.addEventListener('input', () => {
       display.textContent = format(parseInt(slider.value));
       if (!baseSnapshot && CURRENT) baseSnapshot = CURRENT;
     });
 
-    // Auto-apply on release
-    slider.addEventListener('change', () => applyAdjust());
+    // Preview on release — sliders stay where they are
+    slider.addEventListener('change', () => previewAdjust());
   });
 
-  // Keep button as fallback
-  document.getElementById('btnAdjust')?.addEventListener('click', () => applyAdjust());
+  // Apply button — commits to history and resets sliders
+  document.getElementById('btnAdjust')?.addEventListener('click', () => commitAdjust());
 
   // Auto enhance
   document.getElementById('btnAutoEnhance')?.addEventListener('click', async () => {
@@ -103,6 +139,7 @@ export function wireAdjust() {
       loadDataURLToCanvas(j.img);
       await refreshInspect();
       pushHistory('Auto enhance');
+      resetSliders(); // clear any in-progress adjustment
       showToast('Auto enhance applied', 'success');
     } catch (e) {
       showToast('Auto enhance failed', 'error');
