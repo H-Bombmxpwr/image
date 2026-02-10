@@ -44,9 +44,8 @@ function buildDescription() {
   return parts.join(', ');
 }
 
-// Live preview — re-applies all slider values from the base snapshot
-// Does NOT commit to history or reset sliders
-async function previewAdjust() {
+// Apply all current slider values from base, push to history, keep sliders in place
+async function applyAdjust() {
   if (!baseSnapshot) baseSnapshot = CURRENT;
   const v = getSliderValues();
 
@@ -71,16 +70,17 @@ async function previewAdjust() {
     setCurrent(j.img);
     loadDataURLToCanvas(j.img);
     await refreshInspect();
+    pushHistory(`Adjust: ${buildDescription()}`);
   } catch (e) {
     showToast('Adjustment failed', 'error');
   }
 }
 
-// Commit — pushes history, resets base and sliders
+// Apply button — commits, resets sliders and base so you start fresh
 async function commitAdjust() {
   if (!baseSnapshot) baseSnapshot = CURRENT;
   const v = getSliderValues();
-  if (isDefault(v)) return;
+  if (isDefault(v)) { resetSliders(); return; }
 
   try {
     const j = await postJSON('/api/adjust', {
@@ -122,11 +122,11 @@ export function wireAdjust() {
       if (!baseSnapshot && CURRENT) baseSnapshot = CURRENT;
     });
 
-    // Preview on release — sliders stay where they are
-    slider.addEventListener('change', () => previewAdjust());
+    // Apply on release — sliders stay, history pushed for undo
+    slider.addEventListener('change', () => applyAdjust());
   });
 
-  // Apply button — commits to history and resets sliders
+  // Apply button — finalize and reset sliders to start fresh
   document.getElementById('btnAdjust')?.addEventListener('click', () => commitAdjust());
 
   // Auto enhance
@@ -139,7 +139,7 @@ export function wireAdjust() {
       loadDataURLToCanvas(j.img);
       await refreshInspect();
       pushHistory('Auto enhance');
-      resetSliders(); // clear any in-progress adjustment
+      resetSliders();
       showToast('Auto enhance applied', 'success');
     } catch (e) {
       showToast('Auto enhance failed', 'error');

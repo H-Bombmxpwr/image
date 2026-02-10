@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="128" height="128" viewBox="0 0 128 128">
+  <rect x="0" y="0" width="128" height="128" fill="rgb(14,18,28)"/>
+
+  <rect x="16" y="16" width="96" height="96"
+        rx="20" ry="20"
+        fill="none"
+        stroke="rgb(124,92,255)"
+        stroke-width="6"/>
+
+  <text x="64.0" y="64.0"
+        fill="rgb(230,237,243)"
+        font-family="Arial, 'DejaVu Sans', 'Helvetica Neue', Helvetica, sans-serif"
+        font-size="64"
+        font-weight="700"
+        text-anchor="middle"
+        dominant-baseline="central">IL</text>
+</svg>
