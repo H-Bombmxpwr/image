@@ -39,6 +39,10 @@ def help_page():
 def about_page():
     return render_template("about.html")
 
+@app.get("/health")
+def health_check():
+    return "ok", 200
+
 # ---------- api ----------
 @app.post("/api/inspect")
 def api_inspect():
@@ -280,7 +284,15 @@ def api_export():
 
 IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PRODUCTION")
 
-if not IS_PRODUCTION:
+if IS_PRODUCTION:
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 3600
+
+    @app.after_request
+    def _cache_static(resp):
+        if request.path.startswith("/static/"):
+            resp.headers["Cache-Control"] = "public, max-age=3600"
+        return resp
+else:
     app.config.update(
         TEMPLATES_AUTO_RELOAD=True,
         SEND_FILE_MAX_AGE_DEFAULT=0
