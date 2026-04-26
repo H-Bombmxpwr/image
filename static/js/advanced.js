@@ -1,193 +1,218 @@
 import { postJSON } from './api.js';
-import { setCurrent, loadDataURLToCanvas, refreshInspect, pushHistory, showToast, CURRENT } from './state.js';
+import { blobToDataURL, dataURLToBlob } from './blob_utils.js';
+import {
+  addBorderBlob,
+  addWatermarkBlob,
+  histEqualizeBlob,
+  vignetteBlob,
+} from './client_ops.js';
+import {
+  CURRENT,
+  IS_GIF,
+  getCurrentBlob,
+  replaceCurrentBlob,
+  setAnimationInfo,
+  showToast,
+} from './state.js';
+
+function requireStaticImage() {
+  if (!CURRENT || !getCurrentBlob()) return false;
+  if (IS_GIF) {
+    showToast('Use the GIF panel to preserve animation.', 'info');
+    return false;
+  }
+  return true;
+}
 
 export function wireAdvanced() {
-  // Histogram equalization
   document.getElementById('btnHistEq')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!requireStaticImage()) return;
     try {
-      const j = await postJSON('/api/histeq', { image: CURRENT });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('Histogram equalization');
-    } catch (e) {
+      const blob = await histEqualizeBlob(getCurrentBlob());
+      await replaceCurrentBlob(blob, { recordHistory: true, label: 'Histogram equalization' });
+    } catch (_) {
       showToast('Histogram equalization failed', 'error');
     }
   });
 
-  // Background tolerance slider display
   const bgTol = document.getElementById('bgTol');
   const bgTolVal = document.getElementById('bgTolVal');
-  if (bgTol && bgTolVal) {
-    bgTol.addEventListener('input', () => {
-      bgTolVal.textContent = bgTol.value;
-    });
-  }
+  bgTol?.addEventListener('input', () => {
+    if (bgTolVal) bgTolVal.textContent = bgTol.value;
+  });
 
-  // Simple background removal
   document.getElementById('btnBgRemove')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-    const tol = parseInt(document.getElementById('bgTol')?.value || '18');
+    if (!requireStaticImage()) return;
+    const tolerance = parseInt(document.getElementById('bgTol')?.value || '18', 10);
     try {
-      const j = await postJSON('/api/background_remove', { image: CURRENT, tolerance: tol });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Background remove (tol: ${tol})`);
-    } catch (e) {
+      showToast('Removing background...', 'info');
+      const j = await postJSON('/api/background_remove', {
+        image: await blobToDataURL(getCurrentBlob()),
+        tolerance,
+      });
+      const blob = await dataURLToBlob(j.img);
+      await replaceCurrentBlob(blob, { recordHistory: true, label: `Background remove (${tolerance})` });
+      showToast('Background removed', 'success');
+    } catch (_) {
       showToast('Background removal failed', 'error');
     }
   });
 
-  // AI background removal
   document.getElementById('btnBgRemoveAI')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-    showToast('Processing with AI...', 'info');
+    if (!requireStaticImage()) return;
     try {
-      const j = await postJSON('/api/background_remove_ai', { image: CURRENT });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('AI background removal');
-      showToast('Background removed!', 'success');
-    } catch (e) {
+      showToast('Running local AI cutout...', 'info');
+      const j = await postJSON('/api/background_remove_ai', {
+        image: await blobToDataURL(getCurrentBlob()),
+      });
+      const blob = await dataURLToBlob(j.img);
+      await replaceCurrentBlob(blob, { recordHistory: true, label: 'AI background removal' });
+      showToast('Background removed', 'success');
+    } catch (_) {
       showToast('AI background removal failed', 'error');
     }
   });
 
-  // Vignette
-  const vigSlider = document.getElementById('vignetteStrength');
-  const vigVal = document.getElementById('vignetteVal');
-  if (vigSlider && vigVal) {
-    vigSlider.addEventListener('input', () => {
-      vigVal.textContent = `${vigSlider.value}%`;
-    });
-  }
+  const vignette = document.getElementById('vignetteStrength');
+  const vignetteVal = document.getElementById('vignetteVal');
+  vignette?.addEventListener('input', () => {
+    if (vignetteVal) vignetteVal.textContent = `${vignette.value}%`;
+  });
 
   document.getElementById('btnVignette')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-    const strength = parseInt(document.getElementById('vignetteStrength')?.value || '50') / 100;
+    if (!requireStaticImage()) return;
+    const strength = parseInt(document.getElementById('vignetteStrength')?.value || '50', 10) / 100;
     try {
-      const j = await postJSON('/api/vignette', { image: CURRENT, strength });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Vignette (${Math.round(strength * 100)}%)`);
-    } catch (e) {
+      const blob = await vignetteBlob(getCurrentBlob(), strength);
+      await replaceCurrentBlob(blob, {
+        recordHistory: true,
+        label: `Vignette ${Math.round(strength * 100)}%`,
+      });
+    } catch (_) {
       showToast('Vignette failed', 'error');
     }
   });
 
-  // Border
   document.getElementById('btnBorder')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-    const size = parseInt(document.getElementById('borderSize')?.value || '10');
+    if (!requireStaticImage()) return;
+    const size = parseInt(document.getElementById('borderSize')?.value || '10', 10);
     const color = document.getElementById('borderColor')?.value || '#000000';
     try {
-      const j = await postJSON('/api/border', { image: CURRENT, size, color });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Border (${size}px, ${color})`);
-    } catch (e) {
+      const blob = await addBorderBlob(getCurrentBlob(), size, color);
+      await replaceCurrentBlob(blob, {
+        recordHistory: true,
+        label: `Border ${size}px`,
+      });
+    } catch (_) {
       showToast('Border failed', 'error');
     }
   });
 
-  // Watermark
-  const wmOpacity = document.getElementById('watermarkOpacity');
-  const wmOpacityVal = document.getElementById('watermarkOpacityVal');
-  if (wmOpacity && wmOpacityVal) {
-    wmOpacity.addEventListener('input', () => {
-      wmOpacityVal.textContent = `${wmOpacity.value}%`;
-    });
-  }
+  const watermarkOpacity = document.getElementById('watermarkOpacity');
+  const watermarkOpacityVal = document.getElementById('watermarkOpacityVal');
+  watermarkOpacity?.addEventListener('input', () => {
+    if (watermarkOpacityVal) watermarkOpacityVal.textContent = `${watermarkOpacity.value}%`;
+  });
 
   document.getElementById('btnWatermark')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!requireStaticImage()) return;
     const text = document.getElementById('watermarkText')?.value || '';
     if (!text.trim()) {
-      showToast('Please enter watermark text', 'error');
+      showToast('Enter watermark text first.', 'error');
       return;
     }
     const position = document.getElementById('watermarkPos')?.value || 'bottom-right';
-    const opacity = parseInt(document.getElementById('watermarkOpacity')?.value || '50') / 100;
+    const opacity = parseInt(document.getElementById('watermarkOpacity')?.value || '50', 10) / 100;
     const color = document.getElementById('watermarkColor')?.value || '#ffffff';
-    
+
     try {
-      const j = await postJSON('/api/watermark', { 
-        image: CURRENT, 
-        text: text.trim(), 
-        position, 
-        opacity, 
-        color 
+      const blob = await addWatermarkBlob(getCurrentBlob(), {
+        text,
+        position,
+        opacity,
+        color,
       });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Watermark: "${text.trim()}"`);
-    } catch (e) {
+      await replaceCurrentBlob(blob, {
+        recordHistory: true,
+        label: `Watermark "${text.trim()}"`,
+      });
+    } catch (_) {
       showToast('Watermark failed', 'error');
     }
   });
 
-  // Seam carving
   const seamSlider = document.getElementById('seamSlider');
-  const seamLbl = document.getElementById('seamW');
+  const seamLabel = document.getElementById('seamW');
   const seamBusy = document.getElementById('seamBusy');
+  let seamBaseBlob = null;
   let seamTimer = null;
-  let seamReqId = 0;
-  let seamLastCommitted = null;
+  let seamToken = 0;
+  let seamLastValue = null;
 
-  if (seamSlider && seamLbl) {
-    const setBusy = (on) => {
-      if (seamBusy) seamBusy.classList.toggle('hidden', !on);
-      if (seamSlider) seamSlider.disabled = !!on;
+  if (seamSlider && seamLabel) {
+    const setBusy = (busy) => {
+      seamBusy?.classList.toggle('hidden', !busy);
+      seamSlider.disabled = busy;
     };
 
     const runSeam = async () => {
-      if (!CURRENT) return;
+      if (!CURRENT || !getCurrentBlob() || IS_GIF) return;
       const target = parseInt(seamSlider.value, 10);
-      seamLbl.textContent = `${target} px`;
-      const myId = ++seamReqId;
+      seamLabel.textContent = `${target} px`;
+      if (!seamBaseBlob) seamBaseBlob = getCurrentBlob();
+      const token = ++seamToken;
       setBusy(true);
-      
+
       try {
         const j = await postJSON('/api/seam_carve', {
-          image: CURRENT,
+          image: await blobToDataURL(seamBaseBlob),
           target_width: target,
           order: 'width-first',
-          energy_mode: 'backward'
+          energy_mode: 'backward',
         });
-        if (myId !== seamReqId) return;
-        setCurrent(j.img);
-        loadDataURLToCanvas(j.img);
-        await refreshInspect();
-      } catch (e) {
-        console.warn('Seam carve failed', e);
+        if (token !== seamToken) return;
+        const blob = await dataURLToBlob(j.img);
+        await replaceCurrentBlob(blob, { recordHistory: false, resetRedo: false });
+      } catch (_) {
+        showToast('Seam carve failed', 'error');
       } finally {
-        if (myId === seamReqId) setBusy(false);
+        if (token === seamToken) {
+          setBusy(false);
+        }
       }
     };
 
-    const debounced = () => {
+    seamSlider.addEventListener('pointerdown', () => {
+      seamBaseBlob = getCurrentBlob();
+    });
+
+    seamSlider.addEventListener('input', () => {
       clearTimeout(seamTimer);
-      seamTimer = setTimeout(runSeam, 300);
-    };
-    
-    seamSlider.addEventListener('input', debounced);
+      seamLabel.textContent = `${seamSlider.value} px`;
+      seamTimer = setTimeout(runSeam, 240);
+    });
 
-    const commit = () => {
+    const commitSeam = async () => {
       const target = parseInt(seamSlider.value, 10);
-      if (seamLastCommitted !== target && CURRENT) {
-        pushHistory(`Seam carve → ${target}px`);
-        seamLastCommitted = target;
-      }
+      if (target === seamLastValue || !getCurrentBlob()) return;
+      seamLastValue = target;
+      await replaceCurrentBlob(getCurrentBlob(), {
+        recordHistory: true,
+        label: `Seam carve to ${target}px`,
+      });
+      seamBaseBlob = getCurrentBlob();
     };
-    
-    seamSlider.addEventListener('change', commit);
-    seamSlider.addEventListener('mouseup', commit);
-    seamSlider.addEventListener('touchend', commit);
+
+    ['change', 'mouseup', 'touchend', 'pointerup'].forEach((eventName) => {
+      seamSlider.addEventListener(eventName, commitSeam);
+    });
   }
+
+  document.addEventListener('imagelab:new-image', (event) => {
+    seamBaseBlob = null;
+    const detail = event.detail?.meta;
+    if (detail) {
+      setAnimationInfo(detail);
+    }
+  });
 }

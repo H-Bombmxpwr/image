@@ -1,415 +1,856 @@
-import { postJSON } from './api.js';
+import {
+  blobToDataURL,
+  cloneMetadata,
+  extensionFromMime,
+  formatBytes,
+  formatLabelFromMime,
+  loadImageFromSource,
+  sanitizeFileName,
+} from './blob_utils.js';
 
-// Core state
 export let CURRENT = null;
 export let ORIGINAL = null;
 export let FILE_NAME = 'untitled';
 export let HISTORY = [];
+export let FUTURE = [];
 export let ASPECT = null;
 export let IS_GIF = false;
 
-const STORE_KEY = 'imagelab-session-v2';
+let CURRENT_BLOB = null;
+let ORIGINAL_BLOB = null;
+let CURRENT_META = {};
+let ORIGINAL_META = {};
+let CURRENT_ANALYSIS = { is_animated: false, frame_count: 1 };
+let currentUrl = null;
+let originalUrl = null;
+let inspectToken = 0;
+let saveTimer = null;
 
-// DOM references
+const DB_NAME = 'imagelab-session';
+const DB_STORE = 'session';
+const DB_KEY = 'latest';
+const MAX_HISTORY = 24;
+
 const canvas = document.getElementById('canvas');
-const ctx = canvas?.getContext('2d');
+const ctx = canvas?.getContext('2d', { willReadFrequently: true });
 const dropZone = document.getElementById('dropZone');
 const dropHint = document.getElementById('dropHint');
 
-// Toast notifications
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value ?? {}));
+}
+
+function revokePreviewUrl(which) {
+  if (which === 'current' && currentUrl) {
+    URL.revokeObjectURL(currentUrl);
+    currentUrl = null;
+  }
+  if (which === 'original' && originalUrl) {
+    URL.revokeObjectURL(originalUrl);
+    originalUrl = null;
+  }
+}
+
+function updateUndoRedoButtons() {
+  const undoBtn = document.getElementById('btnUndo');
+  const redoBtn = document.getElementById('btnRedo');
+  if (undoBtn) undoBtn.disabled = HISTORY.length <= 1;
+  if (redoBtn) redoBtn.disabled = FUTURE.length === 0;
+}
+
+function getSnapshot(label) {
+  return {
+    label,
+    blob: CURRENT_BLOB,
+    fileName: FILE_NAME,
+    isGif: IS_GIF,
+    metadata: cloneMetadata(CURRENT_META),
+    analysis: deepClone(CURRENT_ANALYSIS),
+  };
+}
+
+function setStageHint(visible) {
+  if (dropHint) {
+    dropHint.style.display = visible ? '' : 'none';
+  }
+}
+
+function setTitle() {
+  document.title = FILE_NAME === 'untitled' ? 'Image Lab' : `${FILE_NAME} - Image Lab`;
+}
+
+function syncFileNameInput() {
+  const input = document.getElementById('fileNameInput');
+  if (input && input.value !== FILE_NAME) {
+    input.value = FILE_NAME;
+  }
+}
+
+function queueSaveState() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveState();
+  }, 160);
+}
+
+async function openDb() {
+  if (!('indexedDB' in window)) {
+    throw new Error('IndexedDB unavailable');
+  }
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onerror = () => reject(request.error || new Error('Failed to open database'));
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) {
+        db.createObjectStore(DB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function readSession() {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const store = tx.objectStore(DB_STORE);
+    const request = store.get(DB_KEY);
+    request.onerror = () => reject(request.error || new Error('Failed to read session'));
+    request.onsuccess = () => resolve(request.result || null);
+  });
+}
+
+async function writeSession(record) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('Failed to write session'));
+    tx.objectStore(DB_STORE).put(record, DB_KEY);
+  });
+}
+
+async function deleteSession() {
+  try {
+    const db = await openDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('Failed to clear session'));
+      tx.objectStore(DB_STORE).delete(DB_KEY);
+    });
+  } catch (_) {
+    // Ignore persistence cleanup failures.
+  }
+}
+
+function syncMetadataEditor() {
+  const editor = document.getElementById('metaEditor');
+  if (editor) {
+    editor.value = JSON.stringify(CURRENT_META || {}, null, 2);
+  }
+}
+
+function updateMetadataStatus() {
+  const badge = document.getElementById('metadataStatus');
+  if (!badge) return;
+  const count = Object.keys(CURRENT_META || {}).length;
+  badge.textContent = count ? `${count} field${count === 1 ? '' : 's'}` : 'Empty';
+  badge.classList.toggle('is-filled', count > 0);
+}
+
+function updateExif(exif) {
+  const content = document.getElementById('exifContent');
+  if (!content) return;
+
+  const keys = Object.keys(exif || {}).filter((key) => key !== 'error');
+  if (!keys.length) {
+    content.innerHTML = '<div class="metadata-empty">No metadata loaded</div>';
+    updateMetadataStatus();
+    return;
+  }
+
+  const rows = keys.map((key) => {
+    const rawValue = exif[key];
+    const value = typeof rawValue === 'object' ? JSON.stringify(rawValue) : String(rawValue);
+    return `<tr><td>${key}</td><td>${value}</td></tr>`;
+  }).join('');
+  content.innerHTML = `<table class="metadata-table">${rows}</table>`;
+  updateMetadataStatus();
+}
+
+function setInfoField(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function updateGifInfoLabel() {
+  const gifInfo = document.getElementById('gifInfo');
+  if (!gifInfo) return;
+
+  if (!CURRENT_BLOB) {
+    gifInfo.textContent = 'Load a GIF to see animation details';
+    return;
+  }
+
+  if (!IS_GIF) {
+    gifInfo.textContent = 'Current image is static';
+    return;
+  }
+
+  const frameCount = CURRENT_ANALYSIS.frame_count || 1;
+  const loop = CURRENT_ANALYSIS.loop;
+  const loopText = typeof loop === 'number'
+    ? (loop === 0 ? 'Loops forever' : `Loops ${loop}x`)
+    : 'Animated';
+  gifInfo.textContent = `${frameCount} frame${frameCount === 1 ? '' : 's'} - ${loopText}`;
+}
+
+function updateCompareButtonState() {
+  const btn = document.getElementById('btnCompare');
+  if (btn) {
+    btn.disabled = !CURRENT_BLOB || !ORIGINAL_BLOB || CURRENT_BLOB === ORIGINAL_BLOB;
+  }
+}
+
+async function setCurrentBlobInternal(blob, options = {}) {
+  CURRENT_BLOB = blob || null;
+  CURRENT_ANALYSIS = deepClone(options.analysis || CURRENT_ANALYSIS || { is_animated: false, frame_count: 1 });
+  IS_GIF = Boolean(options.isGif);
+
+  revokePreviewUrl('current');
+  CURRENT = null;
+
+  if (!CURRENT_BLOB) {
+    renderEmptyStage();
+    updateCompareButtonState();
+    updateUndoRedoButtons();
+    return;
+  }
+
+  currentUrl = URL.createObjectURL(CURRENT_BLOB);
+  CURRENT = currentUrl;
+  setStageHint(false);
+  loadDataURLToCanvas(CURRENT);
+  await refreshInspect();
+  updateCompareButtonState();
+  updateUndoRedoButtons();
+}
+
+function renderEmptyStage() {
+  hideGifPreview();
+  if (canvas && ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+  setStageHint(true);
+  setInfoField('infoFormat', '-');
+  setInfoField('infoMode', '-');
+  setInfoField('infoDim', '-');
+  setInfoField('infoAspect', '-');
+  setInfoField('infoSize', '-');
+  setInfoField('infoAvg', '-');
+  updateExif({});
+  updateGifInfoLabel();
+}
+
 export function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
-  
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.textContent = message;
   container.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.style.opacity = '0';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+    setTimeout(() => toast.remove(), 250);
+  }, 2600);
 }
 
-// State persistence
-export function saveState() {
+export async function saveState() {
+  if (!CURRENT_BLOB) {
+    await deleteSession();
+    return;
+  }
+
   try {
-    if (!CURRENT) return;
-    const payload = { CURRENT, ORIGINAL, FILE_NAME, HISTORY, IS_GIF };
-    localStorage.setItem(STORE_KEY, JSON.stringify(payload));
-  } catch (e) {
-    console.warn('Failed to save state:', e);
+    await writeSession({
+      fileName: FILE_NAME,
+      isGif: IS_GIF,
+      metadata: cloneMetadata(CURRENT_META),
+      originalMetadata: cloneMetadata(ORIGINAL_META),
+      analysis: deepClone(CURRENT_ANALYSIS),
+      currentBlob: CURRENT_BLOB,
+      originalBlob: ORIGINAL_BLOB || CURRENT_BLOB,
+    });
+  } catch (error) {
+    console.warn('Failed to persist session:', error);
   }
 }
 
-export function initStateFromStorage() {
+export async function initStateFromStorage() {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return false;
-    
-    const s = JSON.parse(raw);
-    if (!s || !s.CURRENT) return false;
-    
-    CURRENT = s.CURRENT;
-    ORIGINAL = s.ORIGINAL || s.CURRENT;
-    FILE_NAME = s.FILE_NAME || 'untitled';
-    IS_GIF = s.IS_GIF || false;
-    HISTORY = Array.isArray(s.HISTORY) && s.HISTORY.length
-      ? s.HISTORY
-      : [{ label: `Opened "${FILE_NAME}"`, snapshot: CURRENT }];
-    
-    if (dropHint) dropHint.style.display = 'none';
-    setFileName(FILE_NAME);
-    loadDataURLToCanvas(CURRENT);
+    const session = await readSession();
+    if (!session?.currentBlob) {
+      return false;
+    }
+
+    FILE_NAME = sanitizeFileName(session.fileName || 'untitled');
+    CURRENT_META = cloneMetadata(session.metadata || {});
+    ORIGINAL_META = cloneMetadata(session.originalMetadata || session.metadata || {});
+    ORIGINAL_BLOB = session.originalBlob || session.currentBlob;
+    IS_GIF = Boolean(session.isGif);
+    CURRENT_ANALYSIS = deepClone(session.analysis || { is_animated: IS_GIF, frame_count: IS_GIF ? 1 : 1 });
+
+    revokePreviewUrl('original');
+    originalUrl = URL.createObjectURL(ORIGINAL_BLOB);
+    ORIGINAL = originalUrl;
+    await setCurrentBlobInternal(session.currentBlob, {
+      isGif: IS_GIF,
+      analysis: CURRENT_ANALYSIS,
+    });
+    HISTORY = [getSnapshot('Restored previous session')];
+    FUTURE = [];
+    syncFileNameInput();
+    setTitle();
     renderHistory();
+    syncMetadataEditor();
+    updateExif(CURRENT_META);
+    queueSaveState();
     return true;
-  } catch (e) {
-    console.warn('Failed to restore state:', e);
+  } catch (error) {
+    console.warn('Failed to restore session:', error);
     return false;
   }
 }
 
 export function saveOnUnload() {
-  window.addEventListener('beforeunload', saveState);
+  window.addEventListener('pagehide', () => {
+    saveState();
+  });
+  window.addEventListener('beforeunload', () => {
+    saveState();
+  });
 }
 
-// File name handling
-export function setFileName(name) {
-  FILE_NAME = (name || 'untitled').replace(/[\\/:*?"<>|]/g, '_');
-  const el = document.getElementById('fileName');
-  if (el) el.textContent = FILE_NAME;
-  document.title = FILE_NAME === 'untitled' ? 'Image Lab' : `${FILE_NAME} \u2014 Image Lab`;
+export function setFileName(name, options = {}) {
+  FILE_NAME = sanitizeFileName(name);
+  const fileName = document.getElementById('fileName');
+  if (fileName) fileName.textContent = FILE_NAME;
+  syncFileNameInput();
+  setTitle();
+  if (!options.skipSave) {
+    queueSaveState();
+  }
 }
 
 export function getFileName() {
   return FILE_NAME;
 }
 
-// Canvas operations
+export function getCurrentBlob() {
+  return CURRENT_BLOB;
+}
+
+export function getCurrentMime() {
+  return CURRENT_BLOB?.type || 'image/png';
+}
+
+export async function getCurrentDataURL() {
+  return CURRENT_BLOB ? blobToDataURL(CURRENT_BLOB) : null;
+}
+
+export function getMetadata() {
+  return cloneMetadata(CURRENT_META);
+}
+
+export function setMetadata(metadata, options = {}) {
+  CURRENT_META = cloneMetadata(metadata || {});
+  if (options.replaceOriginal) {
+    ORIGINAL_META = cloneMetadata(CURRENT_META);
+  }
+  syncMetadataEditor();
+  updateExif(CURRENT_META);
+  if (!options.skipSave) {
+    queueSaveState();
+  }
+}
+
+export function setAnimationInfo(info = {}) {
+  CURRENT_ANALYSIS = {
+    ...CURRENT_ANALYSIS,
+    ...deepClone(info),
+  };
+  updateGifInfoLabel();
+}
+
+export function setIsGif(value) {
+  IS_GIF = Boolean(value);
+  updateGifInfoLabel();
+}
+
+export async function openEditorBlob(blob, options = {}) {
+  if (!blob) {
+    bootPreview();
+    return;
+  }
+
+  setFileName(options.fileName || FILE_NAME, { skipSave: true });
+  CURRENT_META = cloneMetadata(options.metadata || {});
+  ORIGINAL_META = cloneMetadata(options.originalMetadata || CURRENT_META);
+  CURRENT_ANALYSIS = deepClone(options.analysis || {
+    is_animated: Boolean(options.isGif),
+    frame_count: options.isGif ? 1 : 1,
+  });
+  IS_GIF = Boolean(options.isGif);
+
+  revokePreviewUrl('original');
+  ORIGINAL_BLOB = blob;
+  originalUrl = URL.createObjectURL(ORIGINAL_BLOB);
+  ORIGINAL = originalUrl;
+
+  await setCurrentBlobInternal(blob, {
+    isGif: IS_GIF,
+    analysis: CURRENT_ANALYSIS,
+  });
+
+  HISTORY = [];
+  FUTURE = [];
+  pushHistory(options.historyLabel || `Opened "${FILE_NAME}"`);
+  syncMetadataEditor();
+  updateExif(CURRENT_META);
+  renderHistory();
+  queueSaveState();
+}
+
+export async function replaceCurrentBlob(blob, options = {}) {
+  if (!blob) return;
+
+  if (options.metadata) {
+    CURRENT_META = cloneMetadata(options.metadata);
+  }
+
+  if (typeof options.isGif === 'boolean') {
+    IS_GIF = options.isGif;
+  }
+
+  if (options.analysis) {
+    CURRENT_ANALYSIS = deepClone(options.analysis);
+  } else if (!IS_GIF) {
+    CURRENT_ANALYSIS = { is_animated: false, frame_count: 1 };
+  }
+
+  await setCurrentBlobInternal(blob, {
+    isGif: IS_GIF,
+    analysis: CURRENT_ANALYSIS,
+  });
+
+  if (options.recordHistory && options.label) {
+    pushHistory(options.label);
+  } else {
+    renderHistory();
+  }
+
+  syncMetadataEditor();
+  updateExif(CURRENT_META);
+  if (options.resetRedo !== false) {
+    FUTURE = [];
+    updateUndoRedoButtons();
+  }
+  queueSaveState();
+}
+
+export function pushHistory(label, options = {}) {
+  if (!CURRENT_BLOB) return;
+  const snapshot = getSnapshot(label);
+
+  if (!options.force && HISTORY.length && HISTORY[HISTORY.length - 1].blob === CURRENT_BLOB) {
+    HISTORY[HISTORY.length - 1] = snapshot;
+  } else {
+    HISTORY.push(snapshot);
+    if (HISTORY.length > MAX_HISTORY) {
+      HISTORY = HISTORY.slice(HISTORY.length - MAX_HISTORY);
+    }
+  }
+
+  FUTURE = [];
+  renderHistory();
+  queueSaveState();
+}
+
+export function clearHistory() {
+  HISTORY = [];
+  FUTURE = [];
+  renderHistory();
+}
+
+async function restoreSnapshot(snapshot) {
+  setFileName(snapshot.fileName || 'untitled', { skipSave: true });
+  CURRENT_META = cloneMetadata(snapshot.metadata || {});
+  CURRENT_ANALYSIS = deepClone(snapshot.analysis || { is_animated: false, frame_count: 1 });
+  IS_GIF = Boolean(snapshot.isGif);
+  await setCurrentBlobInternal(snapshot.blob, {
+    isGif: IS_GIF,
+    analysis: CURRENT_ANALYSIS,
+  });
+  syncMetadataEditor();
+  updateExif(CURRENT_META);
+  renderHistory();
+  queueSaveState();
+}
+
+export async function undo() {
+  if (HISTORY.length <= 1) return;
+  const current = HISTORY.pop();
+  FUTURE.push(current);
+  await restoreSnapshot(HISTORY[HISTORY.length - 1]);
+}
+
+export async function redo() {
+  if (!FUTURE.length) return;
+  const snapshot = FUTURE.pop();
+  HISTORY.push(snapshot);
+  await restoreSnapshot(snapshot);
+}
+
+export function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!list) return;
+
+  list.innerHTML = '';
+  const currentIndex = HISTORY.length - 1;
+
+  for (let i = HISTORY.length - 1; i >= 0; i -= 1) {
+    const item = document.createElement('div');
+    item.className = `history-item${i === currentIndex ? ' is-current' : ''}`;
+    item.innerHTML = `
+      <span class="history-label">${HISTORY[i].label}</span>
+      <button class="btn btn-sm" data-idx="${i}">${i === currentIndex ? 'Current' : 'Restore'}</button>
+    `;
+
+    const button = item.querySelector('button');
+    button.disabled = i === currentIndex;
+    button.addEventListener('click', async (event) => {
+      const idx = Number(event.currentTarget.dataset.idx);
+      const oldHistory = HISTORY.slice();
+      HISTORY = oldHistory.slice(0, idx + 1);
+      FUTURE = oldHistory.slice(idx + 1).reverse();
+      await restoreSnapshot(HISTORY[HISTORY.length - 1]);
+      showToast(`Restored "${HISTORY[HISTORY.length - 1].label}"`, 'success');
+    });
+
+    list.appendChild(item);
+  }
+
+  updateUndoRedoButtons();
+  updateCompareButtonState();
+}
+
 export function setCanvasFromImage(img) {
   if (!canvas || !ctx || !dropZone) return;
-  
-  const maxW = dropZone.clientWidth - 20;
-  const maxH = Math.min(window.innerHeight * 0.7, dropZone.clientHeight - 20);
-  
-  let w = img.width;
-  let h = img.height;
-  const ratio = Math.min(maxW / w, maxH / h, 1);
-  
-  w = Math.max(1, Math.floor(w * ratio));
-  h = Math.max(1, Math.floor(h * ratio));
-  
-  canvas.width = w;
-  canvas.height = h;
-  ctx.clearRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
+
+  const maxW = Math.max(220, dropZone.clientWidth - 24);
+  const maxH = Math.max(220, Math.min(window.innerHeight * 0.72, dropZone.clientHeight - 24));
+  let width = img.width;
+  let height = img.height;
+  const ratio = Math.min(maxW / width, maxH / height, 1);
+
+  width = Math.max(1, Math.floor(width * ratio));
+  height = Math.max(1, Math.floor(height * ratio));
+
+  canvas.width = width;
+  canvas.height = height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.drawImage(img, 0, 0, width, height);
 }
 
 export function dataURLFromCanvas() {
   return canvas?.toDataURL('image/png') || '';
 }
 
-// GIF preview element reference
 let gifPreviewImg = null;
 let gifPlaying = true;
 
-export function loadDataURLToCanvas(dataURL) {
-  // Hide any existing GIF preview
+export function loadDataURLToCanvas(source) {
   hideGifPreview();
-  
-  // Clear the canvas first
+
   if (canvas && ctx) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
-  
-  // Check if this is a GIF
-  const isGif = dataURL.startsWith('data:image/gif');
-  
-  if (isGif) {
-    // For GIFs, use an img element to preserve animation
-    showGifPreview(dataURL);
-  } else {
-    // For static images, draw to canvas
-    const img = new Image();
-    img.onload = () => {
+
+  if (!source) {
+    renderEmptyStage();
+    return;
+  }
+
+  if (IS_GIF || String(source).startsWith('data:image/gif')) {
+    showGifPreview(source);
+    return;
+  }
+
+  loadImageFromSource(source)
+    .then((img) => {
       if (canvas) canvas.style.display = 'block';
       setCanvasFromImage(img);
-    };
-    img.onerror = () => console.error('Failed to load image');
-    img.src = dataURL;
-  }
+    })
+    .catch(() => {
+      console.error('Failed to load image preview');
+    });
 }
 
-function showGifPreview(dataURL) {
-  const dropZone = document.getElementById('dropZone');
-  if (!dropZone) return;
-  
-  // Hide the canvas
+function showGifPreview(source) {
+  const zone = document.getElementById('dropZone');
+  if (!zone) return;
+
   if (canvas) canvas.style.display = 'none';
-  
-  // Create or reuse GIF preview container
+
   let container = document.getElementById('gifPreviewContainer');
   if (!container) {
     container = document.createElement('div');
     container.id = 'gifPreviewContainer';
-    container.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:center;z-index:1;flex-direction:column;';
-    dropZone.appendChild(container);
+    container.className = 'gif-preview-container';
+    zone.appendChild(container);
   }
-  
-  // Create the GIF image element
+
   if (!gifPreviewImg) {
     gifPreviewImg = document.createElement('img');
     gifPreviewImg.id = 'gifPreview';
-    gifPreviewImg.style.cssText = 'max-width:100%;max-height:65vh;display:block;object-fit:contain;';
+    gifPreviewImg.className = 'gif-preview';
     container.appendChild(gifPreviewImg);
   }
-  
-  // Create play/pause button if needed
+
   let playBtn = document.getElementById('gifPlayPauseBtn');
   if (!playBtn) {
     playBtn = document.createElement('button');
     playBtn.id = 'gifPlayPauseBtn';
-    playBtn.className = 'btn gif-play-btn';
-    playBtn.innerHTML = '⏸ Pause';
-    playBtn.style.cssText = 'margin-top:12px;background:rgba(20,24,31,0.9);border:1px solid rgba(99,102,241,0.5);padding:8px 20px;border-radius:20px;color:#fff;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px;';
+    playBtn.className = 'btn btn-soft gif-play-btn';
+    playBtn.textContent = 'Pause animation';
     playBtn.addEventListener('click', toggleGifPlayback);
     container.appendChild(playBtn);
   }
-  
-  // Reset play state
+
   gifPlaying = true;
-  playBtn.innerHTML = '⏸ Pause';
-  playBtn.style.display = 'flex';
-  
-  // Load the GIF
-  gifPreviewImg.src = dataURL;
+  playBtn.textContent = 'Pause animation';
+  playBtn.style.display = 'inline-flex';
+  gifPreviewImg.src = source;
   container.style.display = 'flex';
 }
 
 function hideGifPreview() {
   const container = document.getElementById('gifPreviewContainer');
-  if (container) {
-    container.style.display = 'none';
-  }
-  if (canvas) {
-    canvas.style.display = 'block';
-  }
-  
-  // Reset GIF state
+  if (container) container.style.display = 'none';
+  if (canvas) canvas.style.display = 'block';
   gifPlaying = true;
   const playBtn = document.getElementById('gifPlayPauseBtn');
   if (playBtn) {
-    playBtn.innerHTML = '⏸ Pause';
+    playBtn.textContent = 'Pause animation';
   }
 }
 
 function toggleGifPlayback() {
   const playBtn = document.getElementById('gifPlayPauseBtn');
   if (!gifPreviewImg || !playBtn) return;
-  
+
   if (gifPlaying) {
-    // Pause: capture current frame and show as static image
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = gifPreviewImg.naturalWidth || gifPreviewImg.width;
-    tempCanvas.height = gifPreviewImg.naturalHeight || gifPreviewImg.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.drawImage(gifPreviewImg, 0, 0);
-    gifPreviewImg.src = tempCanvas.toDataURL('image/png');
-    playBtn.innerHTML = '▶ Play';
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = gifPreviewImg.naturalWidth || gifPreviewImg.width;
+    frameCanvas.height = gifPreviewImg.naturalHeight || gifPreviewImg.height;
+    const frameCtx = frameCanvas.getContext('2d');
+    frameCtx.drawImage(gifPreviewImg, 0, 0);
+    gifPreviewImg.src = frameCanvas.toDataURL('image/png');
+    playBtn.textContent = 'Resume animation';
     gifPlaying = false;
   } else {
-    // Resume: reload the original GIF from CURRENT
-    if (CURRENT && CURRENT.startsWith('data:image/gif')) {
-      gifPreviewImg.src = CURRENT;
-    }
-    playBtn.innerHTML = '⏸ Pause';
+    gifPreviewImg.src = CURRENT;
+    playBtn.textContent = 'Pause animation';
     gifPlaying = true;
   }
 }
 
-// Export for external use
 export function isGifPlaying() {
   return gifPlaying;
 }
 
-// Setters
-export function setCurrent(dataURL) {
-  CURRENT = dataURL;
-}
-
-export function setOriginal(dataURL) {
-  ORIGINAL = dataURL;
-}
-
-export function setIsGif(value) {
-  IS_GIF = value;
-}
-
-// History management
-export function pushHistory(label) {
-  if (!CURRENT) return;
-  HISTORY.push({ label, snapshot: CURRENT });
-  renderHistory();
-  saveState();
-}
-
-export function clearHistory() {
-  HISTORY = [];
-  renderHistory();
-}
-
-export function renderHistory() {
-  const list = document.getElementById('historyList');
-  if (!list) return;
-  
-  list.innerHTML = '';
-  
-  // Render newest first
-  for (let i = HISTORY.length - 1; i >= 0; i--) {
-    const item = document.createElement('div');
-    item.className = 'history-item';
-    item.innerHTML = `
-      <span class="history-label">${HISTORY[i].label}</span>
-      <button class="btn btn-sm" data-idx="${i}">Restore</button>
-    `;
-    
-    item.querySelector('button').addEventListener('click', async (e) => {
-      const idx = parseInt(e.currentTarget.dataset.idx, 10);
-      const snap = HISTORY[idx].snapshot;
-      
-      setCurrent(snap);
-      loadDataURLToCanvas(snap);
-      
-      // Keep history up to this point
-      HISTORY = HISTORY.slice(0, idx + 1);
-      
-      renderHistory();
-      await refreshInspect();
-      saveState();
-      showToast('Restored to: ' + HISTORY[idx].label);
-    });
-    
-    list.appendChild(item);
-  }
-}
-
-// Info panel update
 export function updateInfo(meta, exif) {
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  };
-  
-  set('infoFormat', meta.format || '—');
-  set('infoMode', meta.mode || '—');
-  set('infoDim', `${meta.width} × ${meta.height}`);
-  set('infoSize', meta.file_size_str || '—');
-  
-  // Calculate average color display
+  if (!meta) return;
+
+  setInfoField('infoFormat', meta.format || '-');
+  setInfoField('infoMode', meta.mode || '-');
+  setInfoField('infoDim', `${meta.width} x ${meta.height}`);
+  setInfoField('infoSize', meta.file_size_str || '-');
+
   if (meta.mean_rgb) {
     const [r, g, b] = meta.mean_rgb;
     const avgEl = document.getElementById('infoAvg');
     if (avgEl) {
-      avgEl.innerHTML = `<span style="display:inline-block;width:12px;height:12px;background:rgb(${r},${g},${b});border-radius:2px;vertical-align:middle;margin-right:4px"></span>rgb(${r}, ${g}, ${b})`;
+      avgEl.innerHTML = `<span class="avg-chip" style="background:rgb(${r}, ${g}, ${b})"></span>rgb(${r}, ${g}, ${b})`;
     }
   }
-  
-  // Aspect ratio
-  const gcd = (a, b) => { while (b) { [a, b] = [b, a % b]; } return a; };
-  const g = gcd(meta.width, meta.height);
-  const aspectText = `${meta.width / g}:${meta.height / g}`;
-  set('infoAspect', aspectText);
-  
-  ASPECT = meta.width / meta.height;
-  
-  // Update resize inputs
-  const wEl = document.getElementById('resizeW');
-  const hEl = document.getElementById('resizeH');
-  if (wEl && hEl) {
-    wEl.value = meta.width;
-    hEl.value = meta.height;
-  }
-  
-  // Update GIF resize inputs
-  const gifWEl = document.getElementById('gifResizeW');
-  const gifHEl = document.getElementById('gifResizeH');
-  if (gifWEl && gifHEl) {
-    gifWEl.value = meta.width;
-    gifHEl.value = meta.height;
-  }
-  
-  // Update seam slider
-  const seam = document.getElementById('seamSlider');
-  const seamW = document.getElementById('seamW');
-  if (seam && seamW) {
-    seam.min = Math.max(10, Math.floor(meta.width * 0.25));
-    seam.max = Math.floor(meta.width * 1.5);
-    seam.value = meta.width;
-    seamW.textContent = `${meta.width} px`;
-  }
-  
-  // Update GIF info
-  if (meta.is_animated || meta.frame_count > 1) {
-    IS_GIF = true;
-    const gifInfo = document.getElementById('gifInfo');
-    if (gifInfo) {
-      gifInfo.textContent = `Animated: ${meta.frame_count} frames`;
-    }
-  }
-  
-  // Update EXIF display
-  updateExif(exif);
-}
 
-function updateExif(exif) {
-  const content = document.getElementById('exifContent');
-  if (!content) return;
-  
-  if (!exif || Object.keys(exif).length === 0) {
-    content.innerHTML = '<div class="metadata-empty">No metadata available</div>';
-    return;
+  const gcd = (a, b) => {
+    let x = a;
+    let y = b;
+    while (y) [x, y] = [y, x % y];
+    return x || 1;
+  };
+  const divisor = gcd(meta.width, meta.height);
+  setInfoField('infoAspect', `${meta.width / divisor}:${meta.height / divisor}`);
+  ASPECT = meta.width / meta.height;
+
+  const resizeW = document.getElementById('resizeW');
+  const resizeH = document.getElementById('resizeH');
+  if (resizeW) resizeW.value = meta.width;
+  if (resizeH) resizeH.value = meta.height;
+
+  const gifResizeW = document.getElementById('gifResizeW');
+  const gifResizeH = document.getElementById('gifResizeH');
+  if (gifResizeW) gifResizeW.value = meta.width;
+  if (gifResizeH) gifResizeH.value = meta.height;
+
+  const seamSlider = document.getElementById('seamSlider');
+  const seamLabel = document.getElementById('seamW');
+  if (seamSlider && seamLabel) {
+    seamSlider.min = Math.max(10, Math.floor(meta.width * 0.25));
+    seamSlider.max = Math.floor(meta.width * 1.5);
+    seamSlider.value = meta.width;
+    seamLabel.textContent = `${meta.width} px`;
   }
-  
-  let html = '<table class="metadata-table">';
-  for (const [key, value] of Object.entries(exif)) {
-    if (key === 'error') continue;
-    const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-    html += `<tr><td>${key}</td><td>${displayValue}</td></tr>`;
-  }
-  html += '</table>';
-  content.innerHTML = html;
+
+  updateExif(exif || CURRENT_META || {});
+  updateGifInfoLabel();
 }
 
 export async function refreshInspect() {
-  if (!CURRENT) return;
-  
+  const myToken = ++inspectToken;
+  if (!CURRENT_BLOB || !CURRENT) {
+    renderEmptyStage();
+    return;
+  }
+
   try {
-    const j = await postJSON('/api/inspect', { image: CURRENT });
-    updateInfo(j.meta, j.exif);
-  } catch (e) {
-    console.error('Failed to inspect image:', e);
+    const img = await loadImageFromSource(CURRENT);
+    if (myToken !== inspectToken) return;
+
+    const sampleScale = Math.min(1, 96 / Math.max(img.width, img.height));
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = Math.max(1, Math.round(img.width * sampleScale));
+    sampleCanvas.height = Math.max(1, Math.round(img.height * sampleScale));
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+    sampleCtx.drawImage(img, 0, 0, sampleCanvas.width, sampleCanvas.height);
+    const pixels = sampleCtx.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data;
+
+    let totalR = 0;
+    let totalG = 0;
+    let totalB = 0;
+    let count = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      totalR += pixels[i];
+      totalG += pixels[i + 1];
+      totalB += pixels[i + 2];
+      count += 1;
+    }
+
+    updateInfo({
+      format: formatLabelFromMime(CURRENT_BLOB.type, extensionFromMime(CURRENT_BLOB.type).toUpperCase()),
+      mode: CURRENT_BLOB.type === 'image/gif' ? 'Animated' : 'RGBA',
+      width: img.naturalWidth || img.width,
+      height: img.naturalHeight || img.height,
+      mean_rgb: count ? [
+        Math.round(totalR / count),
+        Math.round(totalG / count),
+        Math.round(totalB / count),
+      ] : [0, 0, 0],
+      file_size_str: formatBytes(CURRENT_BLOB.size || 0),
+    }, CURRENT_META);
+  } catch (error) {
+    console.error('Failed to inspect image:', error);
   }
 }
 
-// Boot with checkerboard pattern
 export function bootPreview() {
-  const p = document.createElement('canvas');
-  p.width = p.height = 32;
-  const g = p.getContext('2d');
-  g.fillStyle = '#1a1f28';
-  g.fillRect(0, 0, 32, 32);
-  g.fillStyle = '#12151c';
-  g.fillRect(0, 0, 16, 16);
-  g.fillRect(16, 16, 16, 16);
-  
-  const dataURL = p.toDataURL('image/png');
-  setCurrent(dataURL);
-  loadDataURLToCanvas(CURRENT);
-  refreshInspect();
-  setFileName('untitled');
-  clearHistory();
+  revokePreviewUrl('current');
+  revokePreviewUrl('original');
+  CURRENT = null;
+  ORIGINAL = null;
+  CURRENT_BLOB = null;
+  ORIGINAL_BLOB = null;
+  CURRENT_META = {};
+  ORIGINAL_META = {};
+  CURRENT_ANALYSIS = { is_animated: false, frame_count: 1 };
+  FILE_NAME = 'untitled';
+  HISTORY = [];
+  FUTURE = [];
   IS_GIF = false;
-  
-  if (dropHint) dropHint.style.display = '';
+  syncFileNameInput();
+  setTitle();
+  renderEmptyStage();
+  renderHistory();
+  syncMetadataEditor();
+  deleteSession();
+}
+
+export function wireStateUI() {
+  const input = document.getElementById('fileNameInput');
+  let previousName = FILE_NAME;
+  input?.addEventListener('focus', () => {
+    previousName = FILE_NAME;
+  });
+  input?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      input.blur();
+    }
+  });
+  input?.addEventListener('blur', () => {
+    const next = sanitizeFileName(input.value);
+    setFileName(next);
+    if (CURRENT_BLOB && next !== previousName) {
+      pushHistory(`Rename to "${next}"`, { force: true });
+      showToast(`Filename updated to ${next}`, 'success');
+    }
+  });
+
+  document.getElementById('btnUndo')?.addEventListener('click', () => undo());
+  document.getElementById('btnRedo')?.addEventListener('click', () => redo());
+
+  const compareButton = document.getElementById('btnCompare');
+  const showOriginal = async () => {
+    if (!ORIGINAL || !CURRENT_BLOB || !ORIGINAL_BLOB || CURRENT_BLOB === ORIGINAL_BLOB) return;
+    loadDataURLToCanvas(ORIGINAL);
+    compareButton?.classList.add('is-active');
+  };
+  const hideOriginal = () => {
+    if (!CURRENT) return;
+    loadDataURLToCanvas(CURRENT);
+    compareButton?.classList.remove('is-active');
+  };
+  ['mousedown', 'touchstart'].forEach((eventName) => {
+    compareButton?.addEventListener(eventName, showOriginal);
+  });
+  ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach((eventName) => {
+    compareButton?.addEventListener(eventName, hideOriginal);
+  });
+
+  document.addEventListener('keydown', async (event) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+    const isMeta = event.ctrlKey || event.metaKey;
+    if (!isMeta) return;
+    const key = event.key.toLowerCase();
+    if (key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      await undo();
+    } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+      event.preventDefault();
+      await redo();
+    }
+  });
+
+  updateUndoRedoButtons();
+  updateCompareButtonState();
 }

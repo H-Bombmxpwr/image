@@ -1,148 +1,153 @@
-import { postJSON } from './api.js';
-import { setCurrent, loadDataURLToCanvas, refreshInspect, pushHistory, showToast, CURRENT } from './state.js';
+import { adjustBlob, autoEnhanceBlob } from './client_ops.js';
+import { CURRENT, getCurrentBlob, replaceCurrentBlob, showToast } from './state.js';
 
-let baseSnapshot = null;
+let baseBlob = null;
+let previewToken = 0;
+let previewTimer = null;
 
 function getSliderValues() {
   return {
-    b: parseInt(document.getElementById('adjBright')?.value || '100') / 100,
-    c: parseInt(document.getElementById('adjContrast')?.value || '100') / 100,
-    s: parseInt(document.getElementById('adjSaturation')?.value || '100') / 100,
-    g: parseInt(document.getElementById('adjGamma')?.value || '100') / 100,
-    temp: parseInt(document.getElementById('adjTemp')?.value || '0'),
+    brightness: parseInt(document.getElementById('adjBright')?.value || '100', 10) / 100,
+    contrast: parseInt(document.getElementById('adjContrast')?.value || '100', 10) / 100,
+    saturation: parseInt(document.getElementById('adjSaturation')?.value || '100', 10) / 100,
+    gamma: parseInt(document.getElementById('adjGamma')?.value || '100', 10) / 100,
+    hue: parseInt(document.getElementById('adjHue')?.value || '0', 10),
+    temperature: parseInt(document.getElementById('adjTemp')?.value || '0', 10),
   };
 }
 
-function isDefault(v) {
-  return Math.abs(v.b - 1) < 0.01 && Math.abs(v.c - 1) < 0.01 &&
-         Math.abs(v.s - 1) < 0.01 && Math.abs(v.g - 1) < 0.01 &&
-         Math.abs(v.temp) < 1;
+function isDefault(values) {
+  return Math.abs(values.brightness - 1) < 0.01 &&
+    Math.abs(values.contrast - 1) < 0.01 &&
+    Math.abs(values.saturation - 1) < 0.01 &&
+    Math.abs(values.gamma - 1) < 0.01 &&
+    Math.abs(values.hue) < 1 &&
+    Math.abs(values.temperature) < 1;
 }
 
-function resetSliders() {
-  document.getElementById('adjBright').value = 100;
-  document.getElementById('adjBrightVal').textContent = '100%';
-  document.getElementById('adjContrast').value = 100;
-  document.getElementById('adjContrastVal').textContent = '100%';
-  document.getElementById('adjSaturation').value = 100;
-  document.getElementById('adjSaturationVal').textContent = '100%';
-  document.getElementById('adjGamma').value = 100;
-  document.getElementById('adjGammaVal').textContent = '1.00';
-  document.getElementById('adjTemp').value = 0;
-  document.getElementById('adjTempVal').textContent = '0';
-  baseSnapshot = null;
-}
-
-function buildDescription() {
-  const v = getSliderValues();
+function buildDescription(values) {
   const parts = [];
-  if (Math.abs(v.b - 1) > 0.01) parts.push(`B:${Math.round(v.b * 100)}%`);
-  if (Math.abs(v.c - 1) > 0.01) parts.push(`C:${Math.round(v.c * 100)}%`);
-  if (Math.abs(v.s - 1) > 0.01) parts.push(`S:${Math.round(v.s * 100)}%`);
-  if (Math.abs(v.g - 1) > 0.01) parts.push(`\u03B3:${v.g.toFixed(2)}`);
-  if (Math.abs(v.temp) > 0) parts.push(`T:${v.temp > 0 ? '+' : ''}${v.temp}`);
+  if (Math.abs(values.brightness - 1) > 0.01) parts.push(`B ${Math.round(values.brightness * 100)}%`);
+  if (Math.abs(values.contrast - 1) > 0.01) parts.push(`C ${Math.round(values.contrast * 100)}%`);
+  if (Math.abs(values.saturation - 1) > 0.01) parts.push(`S ${Math.round(values.saturation * 100)}%`);
+  if (Math.abs(values.gamma - 1) > 0.01) parts.push(`G ${values.gamma.toFixed(2)}`);
+  if (Math.abs(values.hue) > 0) parts.push(`Hue ${values.hue}`);
+  if (Math.abs(values.temperature) > 0) parts.push(`Temp ${values.temperature > 0 ? '+' : ''}${values.temperature}`);
   return parts.join(', ');
 }
 
-// Apply all current slider values from base, push to history, keep sliders in place
-async function applyAdjust() {
-  if (!baseSnapshot) baseSnapshot = CURRENT;
-  const v = getSliderValues();
+function resetSliders() {
+  const defaults = [
+    ['adjBright', 100, 'adjBrightVal', '100%'],
+    ['adjContrast', 100, 'adjContrastVal', '100%'],
+    ['adjSaturation', 100, 'adjSaturationVal', '100%'],
+    ['adjGamma', 100, 'adjGammaVal', '1.00'],
+    ['adjHue', 0, 'adjHueVal', '0deg'],
+    ['adjTemp', 0, 'adjTempVal', '0'],
+  ];
+  defaults.forEach(([inputId, value, valueId, text]) => {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(valueId);
+    if (input) input.value = value;
+    if (label) label.textContent = text;
+  });
+  baseBlob = null;
+}
 
-  // If everything is back to default, restore the base
-  if (isDefault(v)) {
-    setCurrent(baseSnapshot);
-    loadDataURLToCanvas(baseSnapshot);
-    await refreshInspect();
+async function previewAdjustments() {
+  if (!CURRENT || !getCurrentBlob()) return;
+  if (!baseBlob) {
+    baseBlob = getCurrentBlob();
+  }
+
+  const values = getSliderValues();
+  if (isDefault(values)) {
+    if (getCurrentBlob() !== baseBlob) {
+      await replaceCurrentBlob(baseBlob, { recordHistory: false, resetRedo: false });
+    }
+    return;
+  }
+
+  const token = ++previewToken;
+  try {
+    const blob = await adjustBlob(baseBlob, values);
+    if (token !== previewToken) return;
+    await replaceCurrentBlob(blob, { recordHistory: false, resetRedo: false });
+  } catch (_) {
+    showToast('Adjustment preview failed', 'error');
+  }
+}
+
+async function commitAdjustments() {
+  if (!CURRENT || !getCurrentBlob()) return;
+  if (!baseBlob) baseBlob = getCurrentBlob();
+
+  const values = getSliderValues();
+  if (isDefault(values)) {
+    resetSliders();
     return;
   }
 
   try {
-    const j = await postJSON('/api/adjust', {
-      image: baseSnapshot,
-      brightness: v.b,
-      contrast: v.c,
-      saturation: v.s,
-      gamma: v.g,
-      temperature: v.temp
+    const finalBlob = getCurrentBlob() === baseBlob
+      ? await adjustBlob(baseBlob, values)
+      : getCurrentBlob();
+    await replaceCurrentBlob(finalBlob, {
+      recordHistory: true,
+      label: `Adjust: ${buildDescription(values)}`,
+      resetRedo: true,
     });
-
-    setCurrent(j.img);
-    loadDataURLToCanvas(j.img);
-    await refreshInspect();
-    pushHistory(`Adjust: ${buildDescription()}`);
-  } catch (e) {
-    showToast('Adjustment failed', 'error');
-  }
-}
-
-// Apply button — commits, resets sliders and base so you start fresh
-async function commitAdjust() {
-  if (!baseSnapshot) baseSnapshot = CURRENT;
-  const v = getSliderValues();
-  if (isDefault(v)) { resetSliders(); return; }
-
-  try {
-    const j = await postJSON('/api/adjust', {
-      image: baseSnapshot,
-      brightness: v.b,
-      contrast: v.c,
-      saturation: v.s,
-      gamma: v.g,
-      temperature: v.temp
-    });
-
-    setCurrent(j.img);
-    loadDataURLToCanvas(j.img);
-    await refreshInspect();
-    pushHistory(`Adjust: ${buildDescription()}`);
     resetSliders();
-  } catch (e) {
+  } catch (_) {
     showToast('Adjustment failed', 'error');
   }
 }
 
 export function wireAdjust() {
   const sliders = [
-    { id: 'adjBright', valId: 'adjBrightVal', format: v => `${v}%` },
-    { id: 'adjContrast', valId: 'adjContrastVal', format: v => `${v}%` },
-    { id: 'adjSaturation', valId: 'adjSaturationVal', format: v => `${v}%` },
-    { id: 'adjGamma', valId: 'adjGammaVal', format: v => (v / 100).toFixed(2) },
-    { id: 'adjTemp', valId: 'adjTempVal', format: v => v > 0 ? `+${v}` : v },
+    ['adjBright', 'adjBrightVal', (value) => `${value}%`],
+    ['adjContrast', 'adjContrastVal', (value) => `${value}%`],
+    ['adjSaturation', 'adjSaturationVal', (value) => `${value}%`],
+    ['adjGamma', 'adjGammaVal', (value) => (value / 100).toFixed(2)],
+    ['adjHue', 'adjHueVal', (value) => `${value}deg`],
+    ['adjTemp', 'adjTempVal', (value) => (value > 0 ? `+${value}` : `${value}`)],
   ];
 
-  sliders.forEach(({ id, valId, format }) => {
-    const slider = document.getElementById(id);
-    const display = document.getElementById(valId);
-    if (!slider || !display) return;
+  sliders.forEach(([inputId, valueId, formatter]) => {
+    const input = document.getElementById(inputId);
+    const label = document.getElementById(valueId);
+    if (!input || !label) return;
 
-    // Live value display while dragging
-    slider.addEventListener('input', () => {
-      display.textContent = format(parseInt(slider.value));
-      if (!baseSnapshot && CURRENT) baseSnapshot = CURRENT;
+    input.addEventListener('input', () => {
+      label.textContent = formatter(parseInt(input.value, 10));
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => {
+        previewAdjustments();
+      }, 70);
     });
-
-    // Apply on release — sliders stay, history pushed for undo
-    slider.addEventListener('change', () => applyAdjust());
   });
 
-  // Apply button — finalize and reset sliders to start fresh
-  document.getElementById('btnAdjust')?.addEventListener('click', () => commitAdjust());
+  document.getElementById('btnAdjust')?.addEventListener('click', () => {
+    commitAdjustments();
+  });
 
-  // Auto enhance
   document.getElementById('btnAutoEnhance')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-
+    if (!CURRENT || !getCurrentBlob()) return;
     try {
-      const j = await postJSON('/api/auto_enhance', { image: CURRENT });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('Auto enhance');
+      const blob = await autoEnhanceBlob(getCurrentBlob());
+      await replaceCurrentBlob(blob, {
+        recordHistory: true,
+        label: 'Auto enhance',
+      });
       resetSliders();
       showToast('Auto enhance applied', 'success');
-    } catch (e) {
+    } catch (_) {
       showToast('Auto enhance failed', 'error');
     }
+  });
+
+  document.addEventListener('imagelab:new-image', () => {
+    clearTimeout(previewTimer);
+    resetSliders();
   });
 }

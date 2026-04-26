@@ -1,215 +1,167 @@
-import {
-  refreshInspect, setFileName, renderHistory, saveState,
-  pushHistory, loadDataURLToCanvas, setCurrent, setOriginal,
-  clearHistory, getFileName, bootPreview, showToast, setIsGif
-} from './state.js';
-import { postJSON } from './api.js';
+import { postFormData } from './api.js';
+import { detectMimeForFile, isLikelyGifMime } from './blob_utils.js';
+import { bootPreview, openEditorBlob, showToast } from './state.js';
 
-// Map file extensions to MIME types for formats browsers don't recognize well
-const MIME_MAP = {
-  'tiff': 'image/tiff',
-  'tif': 'image/tiff',
-  'bmp': 'image/bmp',
-  'gif': 'image/gif',
-  'webp': 'image/webp',
-  'heic': 'image/heic',
-  'heif': 'image/heif',
-};
-
-// Formats that browsers can't display natively and need server conversion
-const NEEDS_CONVERSION = ['image/tiff', 'image/heic', 'image/heif', 'image/bmp'];
+async function inspectFile(file) {
+  const formData = new FormData();
+  formData.append('image', file, file.name || 'upload');
+  return postFormData('/api/inspect_upload', formData);
+}
 
 export function wireOpeners() {
-  const dropHint = document.getElementById('dropHint');
   const dropZone = document.getElementById('dropZone');
+  const dropHint = document.getElementById('dropHint');
   const fileInput = document.getElementById('fileInput');
   const pasteOverlay = document.getElementById('pasteOverlay');
 
-  // Open file function
   async function openFile(file) {
     try {
-      // Determine MIME type - browsers often fail on TIFF, BMP etc.
-      let mimeType = file.type;
-      if (!mimeType || mimeType === 'application/octet-stream') {
-        const ext = file.name.split('.').pop().toLowerCase();
-        mimeType = MIME_MAP[ext] || 'image/png';
-      }
-      
-      const buf = await file.arrayBuffer();
-      const bytes = new Uint8Array(buf);
-      
-      // Build data URL with correct MIME type
-      let dataURL = `data:${mimeType};base64,` + 
-        btoa(bytes.reduce((data, byte) => data + String.fromCharCode(byte), ''));
-      
-      // Check if GIF
-      const isGif = mimeType === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
-      setIsGif(isGif);
-      
-      // Store original for export
-      const originalDataURL = dataURL;
-      
-      // For formats browsers can't display, convert to PNG via server
-      let displayDataURL = dataURL;
-      if (NEEDS_CONVERSION.includes(mimeType)) {
-        try {
-          showToast('Converting image for display...', 'info');
-          const result = await postJSON('/api/normalize', { image: dataURL });
-          displayDataURL = result.img;
-        } catch (e) {
-          console.warn('Could not normalize image, trying direct display:', e);
-        }
-      }
-      
-      // Clear old state before setting new
-      setCurrent(null);
-      setOriginal(null);
-      
-      // Set new image - store original for export, display converted version
-      setCurrent(displayDataURL);
-      setOriginal(originalDataURL);
-      
-      const baseName = file.name.replace(/\.[^.]+$/, '');
-      setFileName(baseName);
-      
-      if (dropHint) dropHint.style.display = 'none';
-      
-      // Load to canvas (this also handles GIF preview)
-      loadDataURLToCanvas(displayDataURL);
-      clearHistory();
-      pushHistory(`Opened "${getFileName()}"`);
-      
-      await refreshInspect();
-      saveState();
+      const mime = await detectMimeForFile(file);
+      const normalized = file.type === mime
+        ? file
+        : new File([await file.arrayBuffer()], file.name || 'image', { type: mime });
+      const isGif = isLikelyGifMime(mime, normalized.name || '');
 
-      document.dispatchEvent(new CustomEvent('imagelab:new-image'));
-      showToast(`Opened: ${file.name}`, 'success');
-    } catch (e) {
-      console.error('Failed to open file:', e);
-      showToast('Failed to open file: ' + e.message, 'error');
+      let inspect = {
+        meta: {
+          is_animated: isGif,
+          frame_count: isGif ? 1 : 1,
+        },
+        exif: {},
+      };
+
+      try {
+        inspect = await inspectFile(normalized);
+      } catch (error) {
+        console.warn('Metadata inspection failed:', error);
+      }
+
+      const baseName = (normalized.name || 'untitled').replace(/\.[^.]+$/, '') || 'untitled';
+      await openEditorBlob(normalized, {
+        fileName: baseName,
+        isGif,
+        metadata: inspect.exif || {},
+        originalMetadata: inspect.exif || {},
+        analysis: inspect.meta || {
+          is_animated: isGif,
+          frame_count: isGif ? 1 : 1,
+        },
+      });
+
+      document.dispatchEvent(new CustomEvent('imagelab:new-image', {
+        detail: {
+          meta: inspect.meta || {},
+          exif: inspect.exif || {},
+        },
+      }));
+
+      if (dropHint) dropHint.style.display = 'none';
+      showToast(`Opened ${normalized.name || 'image'}`, 'success');
+    } catch (error) {
+      console.error('Failed to open file:', error);
+      showToast(`Failed to open file: ${error.message}`, 'error');
     }
   }
-  
-  // Expose for testing
+
   window.openImageFile = openFile;
 
-  // File input change
-  fileInput?.addEventListener('change', (e) => {
-    const f = e.target.files?.[0];
-    if (f) openFile(f);
-    e.target.value = ''; // Reset for same file selection
+  fileInput?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (file) await openFile(file);
+    event.target.value = '';
   });
 
-  // Click drop zone to open picker
-  dropZone?.addEventListener('click', (e) => {
-    if (e.target === dropZone || e.target === dropHint || dropHint?.contains(e.target)) {
+  dropZone?.addEventListener('click', (event) => {
+    if (event.target === dropZone || event.target === dropHint || dropHint?.contains(event.target)) {
       fileInput?.click();
     }
   });
 
-  // Reset button
   document.getElementById('btnReset')?.addEventListener('click', () => {
     if (confirm('Clear the current image and start fresh?')) {
       bootPreview();
-      localStorage.removeItem('imagelab-session-v2');
-      showToast('Reset complete');
+      showToast('Workspace cleared', 'success');
     }
   });
 
-  // Paste button
   document.getElementById('btnPaste')?.addEventListener('click', async () => {
-    // Try modern clipboard API first
-    if (navigator.clipboard && navigator.clipboard.read) {
+    if (navigator.clipboard?.read) {
       try {
         const items = await navigator.clipboard.read();
         for (const item of items) {
           for (const type of item.types) {
             if (type.startsWith('image/')) {
               const blob = await item.getType(type);
-              const file = new File([blob], 'pasted', { type });
-              await openFile(file);
+              await openFile(new File([blob], `pasted.${type.split('/')[1] || 'png'}`, { type }));
               return;
             }
           }
         }
-        showToast('No image in clipboard', 'error');
+        showToast('No image found in clipboard', 'error');
         return;
-      } catch (e) {
-        // Fall through to overlay method
-        console.log('Clipboard API failed, using fallback');
+      } catch (_) {
+        // Fall back to the overlay for blocked clipboard access.
       }
     }
-    
-    // Show paste overlay as fallback
-    if (pasteOverlay) {
-      pasteOverlay.classList.remove('hidden');
-    }
+
+    pasteOverlay?.classList.remove('hidden');
   });
 
-  // Paste overlay click to dismiss
   pasteOverlay?.addEventListener('click', () => {
     pasteOverlay.classList.add('hidden');
   });
 
-  // Global paste handler
-  window.addEventListener('paste', async (e) => {
-    // Hide overlay if shown
-    if (pasteOverlay) {
-      pasteOverlay.classList.add('hidden');
-    }
-    
-    const items = e.clipboardData?.items;
+  window.addEventListener('paste', async (event) => {
+    pasteOverlay?.classList.add('hidden');
+    const items = event.clipboardData?.items;
     if (!items) return;
-    
+
     for (const item of items) {
       if (item.type.startsWith('image/')) {
-        e.preventDefault();
+        event.preventDefault();
         const blob = item.getAsFile();
         if (blob) {
-          const file = new File([blob], 'pasted', { type: blob.type || 'image/png' });
-          await openFile(file);
+          await openFile(new File([blob], `pasted.${item.type.split('/')[1] || 'png'}`, {
+            type: blob.type || 'image/png',
+          }));
         }
         return;
       }
     }
   });
 
-  // Drag and drop
-  ['dragenter', 'dragover'].forEach(ev => {
-    dropZone?.addEventListener(ev, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    dropZone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       dropZone.classList.add('drag-over');
     });
   });
 
-  ['dragleave', 'drop'].forEach(ev => {
-    dropZone?.addEventListener(ev, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  ['dragleave', 'drop'].forEach((eventName) => {
+    dropZone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       dropZone.classList.remove('drag-over');
     });
   });
 
-  dropZone?.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    const files = e.dataTransfer?.files;
-    if (files?.length > 0) {
+  dropZone?.addEventListener('drop', async (event) => {
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
       await openFile(files[0]);
     }
   });
 
-  // Also handle drops on the entire window
-  window.addEventListener('dragover', (e) => {
-    e.preventDefault();
+  window.addEventListener('dragover', (event) => {
+    event.preventDefault();
   });
 
-  window.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    if (e.target === dropZone || dropZone?.contains(e.target)) return; // Already handled
-    
-    const files = e.dataTransfer?.files;
-    if (files?.length > 0) {
+  window.addEventListener('drop', async (event) => {
+    event.preventDefault();
+    if (event.target === dropZone || dropZone?.contains(event.target)) return;
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
       await openFile(files[0]);
     }
   });

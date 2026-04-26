@@ -1,3 +1,4 @@
+from collections import deque
 from PIL import Image, ImageOps, ImageFilter, ImageEnhance, ImageDraw, ImageFont
 import numpy as np
 from .compat import Resampling
@@ -214,31 +215,65 @@ def hist_equalize(img: Image.Image):
         result.putalpha(alpha)
     return result
 
+def _flood_background(similar: np.ndarray) -> np.ndarray:
+    """Mark only similar pixels that are connected to the image border."""
+    height, width = similar.shape
+    visited = np.zeros_like(similar, dtype=bool)
+    queue = deque()
+
+    def enqueue(x: int, y: int):
+        if 0 <= x < width and 0 <= y < height and similar[y, x] and not visited[y, x]:
+            visited[y, x] = True
+            queue.append((x, y))
+
+    for x in range(width):
+        enqueue(x, 0)
+        enqueue(x, height - 1)
+    for y in range(height):
+        enqueue(0, y)
+        enqueue(width - 1, y)
+
+    while queue:
+        x, y = queue.popleft()
+        enqueue(x + 1, y)
+        enqueue(x - 1, y)
+        enqueue(x, y + 1)
+        enqueue(x, y - 1)
+
+    return visited
+
+
 def remove_background(img: Image.Image, tol: float):
-    """Remove solid background using border color sampling."""
-    arr = np.array(img.convert("RGBA"))
-    
-    # Sample border pixels
-    top = arr[0, :, :3]
-    bottom = arr[-1, :, :3]
-    left = arr[:, 0, :3]
-    right = arr[:, -1, :3]
-    border = np.concatenate([top, bottom, left, right], axis=0)
-    
-    # Calculate mean background color
-    bg = border.mean(axis=0)
-    
-    # Calculate distance from background
+    """Remove a likely studio/background color with soft edge matting."""
+    arr = np.array(img.convert("RGBA"), dtype=np.uint8)
     rgb = arr[:, :, :3].astype(np.float32)
-    dist = np.linalg.norm(rgb - bg, axis=2)
-    
-    # Apply threshold
-    threshold = (tol / 100.0) * 255.0 * 1.5
+
+    top = rgb[0, :, :]
+    bottom = rgb[-1, :, :]
+    left = rgb[:, 0, :]
+    right = rgb[:, -1, :]
+    border = np.concatenate([top, bottom, left, right], axis=0)
+
+    background_color = np.median(border, axis=0)
+    distance = np.linalg.norm(rgb - background_color, axis=2)
+
+    threshold = max(8.0, 12.0 + (tol / 100.0) * 120.0)
+    similar = distance <= threshold
+    connected_bg = _flood_background(similar)
+
+    soft_lo = threshold * 0.62
+    soft_hi = threshold * 1.55
+    soft_alpha = np.clip((distance - soft_lo) / max(1.0, soft_hi - soft_lo), 0.0, 1.0) * 255.0
+
     alpha = arr[:, :, 3].astype(np.float32)
-    alpha[dist < threshold] = 0
-    
-    # Create output
-    out = np.dstack([rgb.astype(np.uint8), alpha.astype(np.uint8)])
+    alpha[connected_bg] = np.minimum(alpha[connected_bg], soft_alpha[connected_bg])
+
+    alpha_img = Image.fromarray(alpha.astype(np.uint8), "L")
+    feather = max(0.8, tol / 24.0)
+    alpha_img = alpha_img.filter(ImageFilter.GaussianBlur(radius=feather))
+    alpha = np.array(alpha_img, dtype=np.uint8)
+
+    out = np.dstack([rgb.astype(np.uint8), alpha])
     return Image.fromarray(out, "RGBA")
 
 def auto_enhance(img: Image.Image):

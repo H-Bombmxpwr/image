@@ -1,61 +1,70 @@
-import { setCurrent, loadDataURLToCanvas, refreshInspect, pushHistory, CURRENT } from './state.js';
+import { cropCanvasToBlob } from './client_ops.js';
+import { CURRENT, IS_GIF, getCurrentBlob, replaceCurrentBlob, showToast } from './state.js';
 
 export function wireCropper() {
-  let CROP = null;
-  const dlg = document.getElementById('cropDialog');
+  let cropper = null;
+  const dialog = document.getElementById('cropDialog');
+
+  const closeCropper = () => {
+    try {
+      cropper?.destroy?.();
+    } catch (_) {
+      // Ignore cleanup errors from Cropper.js.
+    }
+    cropper = null;
+    dialog?.close();
+  };
 
   document.getElementById('openCropper')?.addEventListener('click', () => {
-    if (!CURRENT) return;
+    if (!CURRENT || !getCurrentBlob()) return;
+    if (IS_GIF) {
+      showToast('Cropping animated GIFs is not supported in the static cropper.', 'info');
+      return;
+    }
+
     const img = document.getElementById('cropImage');
     if (!img) return;
-    
     img.src = CURRENT;
-    dlg?.showModal();
-    
+    dialog?.showModal();
+
     setTimeout(() => {
-      try { CROP?.destroy?.(); } catch {}
-      CROP = new Cropper(img, {
+      try {
+        cropper?.destroy?.();
+      } catch (_) {
+        // Ignore cropper reset errors.
+      }
+      cropper = new Cropper(img, {
         viewMode: 1,
-        autoCropArea: 0.85,
+        autoCropArea: 0.9,
         background: false,
         movable: true,
         zoomable: true,
-        responsive: true
+        responsive: true,
       });
-    }, 50);
+    }, 40);
   });
 
-  // Cancel buttons
-  const cancelCrop = () => {
-    try { CROP?.destroy?.(); } catch {}
-    CROP = null;
-    dlg?.close();
-  };
-  
-  document.getElementById('cropCancel')?.addEventListener('click', cancelCrop);
-  document.getElementById('cropCancelBtn')?.addEventListener('click', cancelCrop);
+  document.getElementById('cropCancel')?.addEventListener('click', closeCropper);
+  document.getElementById('cropCancelBtn')?.addEventListener('click', closeCropper);
 
-  // Apply crop
   document.getElementById('cropApply')?.addEventListener('click', async () => {
-    if (!CROP) return;
-    
-    const canvas = CROP.getCroppedCanvas({ imageSmoothingEnabled: true });
-    const dataURL = canvas.toDataURL('image/png');
-    
-    setCurrent(dataURL);
-    loadDataURLToCanvas(dataURL);
-    await refreshInspect();
-    pushHistory('Crop');
-    
-    try { CROP.destroy(); } catch {}
-    CROP = null;
-    dlg?.close();
+    if (!cropper) return;
+    try {
+      const canvas = cropper.getCroppedCanvas({ imageSmoothingEnabled: true });
+      const blob = await cropCanvasToBlob(canvas);
+      await replaceCurrentBlob(blob, {
+        recordHistory: true,
+        label: 'Crop image',
+      });
+      closeCropper();
+    } catch (_) {
+      showToast('Crop failed', 'error');
+    }
   });
 
-  // Close on backdrop click
-  dlg?.addEventListener('click', (e) => {
-    if (e.target === dlg) {
-      cancelCrop();
+  dialog?.addEventListener('click', (event) => {
+    if (event.target === dialog) {
+      closeCropper();
     }
   });
 }

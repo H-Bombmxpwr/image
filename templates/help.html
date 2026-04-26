@@ -3,183 +3,183 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Image Lab — Help & Reference</title>
+  <title>Image Lab - Help</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
   <style>
-    .help-container { max-width: 1000px; margin: 0 auto; padding: 24px; }
-    .help-header { margin-bottom: 32px; }
-    .help-header h1 { font-size: 2rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent) 0%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .help-section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-    .help-section h2 { font-size: 1.25rem; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
-    .help-section h2 .icon { width: 24px; height: 24px; color: var(--accent); }
-    .help-section h3 { font-size: 1rem; margin: 20px 0 12px; color: var(--text-secondary); }
-    .help-section p { color: var(--text-secondary); line-height: 1.7; margin-bottom: 12px; }
-    .help-section ul { color: var(--text-secondary); padding-left: 20px; margin-bottom: 16px; }
-    .help-section li { margin-bottom: 8px; line-height: 1.6; }
-    .kbd { font-family: var(--font-mono); font-size: 0.875rem; background: var(--bg-tertiary); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); }
-    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
-    .feature-card { background: var(--bg-tertiary); border-radius: 12px; padding: 16px; }
-    .feature-card h4 { font-size: 0.9375rem; margin-bottom: 8px; }
-    .feature-card p { font-size: 0.875rem; margin-bottom: 0; }
-    .equation { background: var(--bg-tertiary); border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-family: var(--font-mono); overflow-x: auto; }
-    .shortcut-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    .shortcut-table th, .shortcut-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border-subtle); }
-    .shortcut-table th { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
-    .shortcut-table td { color: var(--text-secondary); }
-    .shortcut-table td:first-child { font-family: var(--font-mono); color: var(--accent); }
-    .tip { background: rgba(99, 102, 241, 0.1); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
-    .tip strong { color: var(--accent); }
+    .help-shell { max-width: 1180px; margin: 0 auto; padding: 22px; }
+    .help-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr); gap: 18px; margin-bottom: 18px; }
+    .help-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+    .help-title { font-size: clamp(2rem, 3vw, 3rem); line-height: 1; margin: 8px 0 12px; }
+    .help-subtitle { color: var(--text-soft); max-width: 44rem; line-height: 1.7; }
+    .help-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .help-card h2 { margin: 0 0 12px; font-size: 1.15rem; }
+    .help-card h3 { margin: 18px 0 8px; font-size: 0.98rem; color: var(--text); }
+    .help-card p, .help-card li { color: var(--text-soft); line-height: 1.7; }
+    .help-card ul { margin: 10px 0 0; padding-left: 18px; }
+    .help-card li + li { margin-top: 6px; }
+    .help-stat { display: grid; gap: 12px; }
+    .help-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--text-soft); font-size: 0.82rem; }
+    .help-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.86rem; }
+    .help-table th, .help-table td { text-align: left; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
+    .help-table th { color: var(--accent-2); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .help-table td:first-child { padding-right: 16px; color: var(--text); }
+    .kbd { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); font-family: var(--mono); font-size: 0.82rem; }
+    .help-note { margin-top: 14px; padding: 12px 14px; border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; background: rgba(255,107,53,0.08); color: var(--text-soft); }
+    .help-span-2 { grid-column: 1 / -1; }
+    @media (max-width: 920px) {
+      .help-hero, .help-grid { grid-template-columns: 1fr; }
+      .help-span-2 { grid-column: auto; }
+    }
   </style>
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <a href="{{ url_for('index') }}" class="brand-name" style="text-decoration:none">← Image Lab</a>
+    <div class="brand-block">
+      <div class="brand-kicker">Help and reference</div>
+      <div class="brand-name"><a href="{{ url_for('index') }}" style="text-decoration:none;color:inherit">Image Lab</a></div>
     </div>
     <div class="actions">
-      <a href="{{ url_for('about_page') }}" class="btn btn-ghost">About</a>
+      <a href="{{ url_for('index') }}" class="btn btn-ghost">Back to Editor</a>
+      <a href="{{ url_for('about_page') }}" class="btn btn-primary">About</a>
     </div>
   </header>
 
-  <main class="help-container">
-    <div class="help-header">
-      <h1>Help & Reference</h1>
-      <p class="muted">Complete guide to all Image Lab features</p>
-    </div>
-
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> Getting Started</h2>
-      <p>Image Lab is a powerful browser-based image editor. Here's how to get started:</p>
-      <div class="feature-grid">
-        <div class="feature-card"><h4>1. Open an Image</h4><p>Click "Open", drag & drop, or paste with <span class="kbd">Ctrl+V</span>.</p></div>
-        <div class="feature-card"><h4>2. Edit Your Image</h4><p>Use tabs to access Basic, Adjust, Filters, and Advanced tools.</p></div>
-        <div class="feature-card"><h4>3. Export</h4><p>Choose format and quality, then Download or Copy to clipboard.</p></div>
-        <div class="feature-card"><h4>4. History</h4><p>Every change is tracked. Restore any previous state anytime.</p></div>
+  <main class="help-shell">
+    <section class="help-hero">
+      <div class="help-card">
+        <div class="section-kicker">How it works</div>
+        <h1 class="help-title">A browser-first editor with heavyweight tools when you need them.</h1>
+        <p class="help-subtitle">
+          Most day-to-day edits run locally in your browser for speed. Bigger operations like seam carving and AI background removal use the server, which is why deployed builds now ship with those heavier capabilities turned on.
+        </p>
+        <div class="help-note">
+          Your working session is saved in your browser, so reloads are much less disruptive than before. Final metadata is embedded when you download the file.
+        </div>
       </div>
-      <div class="tip"><strong>Tip:</strong> Your work is automatically saved in your browser!</div>
-    </section>
-
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Supported Formats</h2>
-      <table class="shortcut-table">
-        <thead><tr><th>Format</th><th>Import</th><th>Export</th><th>Notes</th></tr></thead>
-        <tbody>
-          <tr><td>PNG</td><td>✓</td><td>✓</td><td>Lossless, supports transparency</td></tr>
-          <tr><td>JPEG</td><td>✓</td><td>✓</td><td>Lossy compression, no transparency</td></tr>
-          <tr><td>WebP</td><td>✓</td><td>✓</td><td>Modern format, good compression</td></tr>
-          <tr><td>GIF</td><td>✓</td><td>✓</td><td>Animated support with special tools</td></tr>
-          <tr><td>BMP</td><td>✓</td><td>✓</td><td>Uncompressed bitmap</td></tr>
-          <tr><td>TIFF</td><td>✓</td><td>✓</td><td>High quality, larger files</td></tr>
-          <tr><td>HEIC / HEIF</td><td>✓</td><td></td><td>Apple format, converted to PNG for display</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg> Basic Tools</h2>
-      <h3>Crop</h3><p>Interactive cropping with drag handles. Click Apply when done.</p>
-      <h3>Flip</h3><p>Mirror horizontally (H) or vertically (V).</p>
-      <h3>Rotate</h3><p>Quick ±90° buttons or custom angle input.</p>
-      <h3>Rename</h3><p>Change the file name used for downloads.</p>
-      <h3>Resize</h3><p>Change dimensions with various interpolation methods:</p>
-      <ul>
-        <li><strong>Lanczos:</strong> Highest quality, best for photos</li>
-        <li><strong>Bicubic:</strong> Good quality, smooth gradients</li>
-        <li><strong>Bilinear:</strong> Fast, decent quality</li>
-        <li><strong>Nearest:</strong> Preserves hard edges (pixel art)</li>
-      </ul>
-    </section>
-
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10"/></svg> Adjust Tools</h2>
-      <p>Sliders auto-apply when you release them. Adjustments are always applied to the image state before you started adjusting, so you can freely experiment without cumulative degradation.</p>
-      <h3>Brightness</h3><p>Multiply pixel values. 100% = no change.</p>
-      <div class="equation">I' = factor × I</div>
-      <h3>Contrast</h3><p>Adjust difference between light and dark areas.</p>
-      <div class="equation">I' = factor × (I - 128) + 128</div>
-      <h3>Saturation</h3><p>Color intensity. 0% = grayscale.</p>
-      <h3>Gamma</h3><p>Non-linear brightness. &lt;1 brightens, &gt;1 darkens midtones.</p>
-      <div class="equation">I' = 255 × (I/255)^(1/γ)</div>
-      <h3>Hue Shift</h3><p>Rotate all colors around the color wheel. Useful for creative color grading.</p>
-      <h3>Temperature</h3><p>Warm (positive) or cool (negative) color shift.</p>
-      <h3>Auto Enhance</h3><p>Automatic contrast optimization using auto-contrast with 1% cutoff.</p>
-    </section>
-
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filters</h2>
-      <p>Filters auto-apply when you check a box or change a value. Like adjustments, they apply from your base image state.</p>
-      <div class="feature-grid">
-        <div class="feature-card"><h4>Grayscale</h4><p>Convert to black and white.</p></div>
-        <div class="feature-card"><h4>Sepia</h4><p>Warm vintage tones.</p></div>
-        <div class="feature-card"><h4>Invert</h4><p>Create a negative image.</p></div>
-        <div class="feature-card"><h4>Sharpen</h4><p>Enhance edges and details.</p></div>
-        <div class="feature-card"><h4>Edges</h4><p>Sobel edge detection.</p></div>
-        <div class="feature-card"><h4>Emboss</h4><p>3D relief effect.</p></div>
-        <div class="feature-card"><h4>Contour</h4><p>Outline edges in the image.</p></div>
-        <div class="feature-card"><h4>Smooth</h4><p>Reduce noise with smoothing.</p></div>
-        <div class="feature-card"><h4>Detail</h4><p>Enhance fine details.</p></div>
-        <div class="feature-card"><h4>Solarize</h4><p>Invert tones above a threshold for a surreal look.</p></div>
-        <div class="feature-card"><h4>Gaussian Blur</h4><p>Smooth blur with radius control.</p></div>
-        <div class="feature-card"><h4>Median</h4><p>Noise reduction, preserves edges.</p></div>
-        <div class="feature-card"><h4>Posterize</h4><p>Reduce color depth.</p></div>
-        <div class="feature-card"><h4>Pixelate</h4><p>Blocky pixel effect.</p></div>
+      <div class="help-card">
+        <div class="section-kicker">At a glance</div>
+        <div class="help-stat">
+          <span class="help-pill">Undo and redo with <span class="kbd">Ctrl/Cmd+Z</span> and <span class="kbd">Ctrl/Cmd+Y</span></span>
+          <span class="help-pill">Hold Compare to preview the original file</span>
+          <span class="help-pill">Rename from the top filename field</span>
+          <span class="help-pill">Metadata edits are written on export</span>
+          <span class="help-pill">GIF tools include reverse, ping-pong, optimize, poster frame, and frame ZIP export</span>
+        </div>
       </div>
     </section>
 
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> Advanced Tools</h2>
-      <h3>Histogram Equalization</h3><p>Spread intensities for better contrast while preserving color information.</p>
-      <h3>Background Removal (Simple)</h3><p>Remove solid backgrounds by color tolerance.</p>
-      {% if has_rembg %}<h3>AI Background Removal</h3><p>Deep learning for precise subject isolation.</p>{% endif %}
-      <h3>Vignette</h3><p>Darken corners for focus effect.</p>
-      <h3>Border</h3><p>Add solid color border.</p>
-      <h3>Watermark</h3><p>Add text overlay with position and opacity controls.</p>
-      {% if has_seam %}<h3>Seam Carving</h3><p>Content-aware resize that preserves important features.</p>{% endif %}
-    </section>
+    <section class="help-grid">
+      <article class="help-card">
+        <div class="section-kicker">Open and export</div>
+        <h2>Import and output</h2>
+        <p>Open files with the picker, drag and drop, or paste from the clipboard with <span class="kbd">Ctrl/Cmd+V</span>.</p>
+        <table class="help-table">
+          <thead>
+            <tr><th>Format</th><th>Import</th><th>Export</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>PNG</td><td>Yes</td><td>Yes</td><td>Lossless and best for transparency.</td></tr>
+            <tr><td>JPEG</td><td>Yes</td><td>Yes</td><td>Smaller files, no alpha.</td></tr>
+            <tr><td>WEBP</td><td>Yes</td><td>Yes</td><td>Good compression and modern browser support.</td></tr>
+            <tr><td>GIF</td><td>Yes</td><td>Yes</td><td>Animation-preserving tools live in the GIF tab.</td></tr>
+            <tr><td>BMP</td><td>Yes</td><td>Yes</td><td>Useful for compatibility workflows.</td></tr>
+            <tr><td>TIFF</td><td>Yes</td><td>Yes</td><td>Large but metadata-friendly.</td></tr>
+            <tr><td>HEIC / HEIF</td><td>Yes</td><td>No</td><td>Imported through Pillow plus HEIF support.</td></tr>
+            <tr><td>BIN</td><td>Best effort</td><td>No</td><td>If the bytes identify a supported image type, Image Lab can open it.</td></tr>
+          </tbody>
+        </table>
+      </article>
 
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Metadata / EXIF</h2>
-      <p>View and edit EXIF metadata embedded in your images. The metadata panel below the canvas lets you:</p>
-      <ul>
-        <li><strong>View:</strong> See all EXIF tags (camera, date, GPS, etc.) in the info table</li>
-        <li><strong>Load:</strong> Read current metadata into the editor as JSON</li>
-        <li><strong>Edit:</strong> Modify JSON fields like artist, copyright, description, software, datetime, make, model</li>
-        <li><strong>Write:</strong> Save your changes back into the image</li>
-      </ul>
-    </section>
+      <article class="help-card">
+        <div class="section-kicker">Workspace basics</div>
+        <h2>Editing flow</h2>
+        <ul>
+          <li><strong>Basic tab:</strong> crop, flip, rotate, rename, resize, and format conversion.</li>
+          <li><strong>Adjust tab:</strong> brightness, contrast, saturation, gamma, hue, temperature, and auto enhance.</li>
+          <li><strong>Filters tab:</strong> grayscale, sepia, invert, sharpen, edges, emboss, contour, smooth, blur, median, posterize, pixelate, and solarize.</li>
+          <li><strong>Advanced tab:</strong> histogram equalization, background removal, vignette, border, watermark, and seam carving.</li>
+          <li><strong>History panel:</strong> restore any saved point, not just the last step.</li>
+        </ul>
+        <div class="help-note">
+          Common edits are local-first now, so they should feel much faster than the older server-roundtrip workflow.
+        </div>
+      </article>
 
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><path d="M7 2v20"/><path d="M17 2v20"/></svg> GIF Tools</h2>
-      <ul>
-        <li><strong>Resize GIF:</strong> Scale while preserving frames and timing</li>
-        <li><strong>Trim Frames:</strong> Remove frames from start/end</li>
-        <li><strong>Speed:</strong> Adjust playback speed (0.5x to 4x)</li>
-        <li><strong>Reverse:</strong> Play backwards</li>
-      </ul>
-    </section>
+      <article class="help-card">
+        <div class="section-kicker">Background tools</div>
+        <h2>Cutouts and content-aware resize</h2>
+        <h3>Smart background removal</h3>
+        <p>The default remover uses border sampling plus a soft matte so simple product, portrait, and screenshot backgrounds look cleaner than a flat threshold cutout.</p>
 
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 16h10"/></svg> Shortcuts</h2>
-      <table class="shortcut-table">
-        <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
-        <tbody>
-          <tr><td>Ctrl+V</td><td>Paste image from clipboard</td></tr>
-          <tr><td>Drop file</td><td>Open dropped image</td></tr>
-          <tr><td>Click canvas</td><td>Open file picker</td></tr>
-        </tbody>
-      </table>
-    </section>
+        {% if has_rembg %}
+        <h3>AI background removal</h3>
+        <p>The deployed build includes <code>rembg</code>, which uses a local segmentation model instead of the remove.bg API. The first call can be slower while the model warms up, but follow-up requests are much faster.</p>
+        {% else %}
+        <h3>AI background removal</h3>
+        <p>This build does not currently have <code>rembg</code> installed.</p>
+        {% endif %}
 
-    <section class="help-section">
-      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg> Technical Info</h2>
-      <p><strong>Backend:</strong> Python/Flask with Pillow</p>
-      <p><strong>Seam Carving:</strong> {{ seam_backend }}</p>
-      {% if has_rembg %}<p><strong>AI Background:</strong> rembg with U²-Net</p>{% endif %}
-      <div class="tip"><strong>Privacy:</strong> Images are processed in memory only and not stored on our servers.</div>
+        {% if has_seam %}
+        <h3>Seam carving</h3>
+        <p>Seam carving removes or adds low-energy seams so the image width can change while protecting important content better than plain scaling.</p>
+        {% endif %}
+      </article>
+
+      <article class="help-card">
+        <div class="section-kicker">Metadata</div>
+        <h2>Reading and writing metadata</h2>
+        <ul>
+          <li><strong>View:</strong> the metadata panel shows parsed EXIF and embedded text fields.</li>
+          <li><strong>Edit:</strong> update the JSON editor with fields like <code>artist</code>, <code>copyright</code>, <code>description</code>, <code>software</code>, <code>datetime</code>, <code>make</code>, and <code>model</code>.</li>
+          <li><strong>Apply:</strong> changes are kept in the editing session immediately.</li>
+          <li><strong>Embed:</strong> metadata is baked into the downloaded file on export.</li>
+        </ul>
+      </article>
+
+      <article class="help-card help-span-2">
+        <div class="section-kicker">GIF tools</div>
+        <h2>Animated image workflow</h2>
+        <table class="help-table">
+          <thead>
+            <tr><th>Tool</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Resize GIF</td><td>Scale animation while preserving timing.</td></tr>
+            <tr><td>Trim Frames</td><td>Cut the animation to a frame range.</td></tr>
+            <tr><td>Speed</td><td>Slow down or speed up playback.</td></tr>
+            <tr><td>Reverse</td><td>Play the sequence backward.</td></tr>
+            <tr><td>Ping-pong</td><td>Append the reversed sequence for looping back-and-forth motion.</td></tr>
+            <tr><td>Optimize</td><td>Reduce palette colors and optionally skip frames to shrink file size.</td></tr>
+            <tr><td>Poster Frame</td><td>Export a single frame as a PNG still image.</td></tr>
+            <tr><td>Frame ZIP</td><td>Download every frame as a ZIP of PNG files.</td></tr>
+          </tbody>
+        </table>
+      </article>
+
+      <article class="help-card">
+        <div class="section-kicker">Shortcuts</div>
+        <h2>Useful commands</h2>
+        <ul>
+          <li><span class="kbd">Ctrl/Cmd+V</span> paste an image from the clipboard</li>
+          <li><span class="kbd">Ctrl/Cmd+Z</span> undo</li>
+          <li><span class="kbd">Ctrl/Cmd+Y</span> redo</li>
+          <li>Hold the <strong>Compare</strong> button to preview the original image</li>
+          <li>Click the filename field at the top to rename the export target</li>
+        </ul>
+      </article>
+
+      <article class="help-card">
+        <div class="section-kicker">Build info</div>
+        <h2>This deployment</h2>
+        <p><strong>Backend:</strong> Flask plus Pillow</p>
+        <p><strong>Seam carving backend:</strong> {{ seam_backend }}</p>
+        <p><strong>AI background:</strong> {% if has_rembg %}Enabled with rembg{% else %}Disabled{% endif %}</p>
+        <p><strong>Privacy note:</strong> images are processed in memory for editing. Your browser session cache lives client-side.</p>
+      </article>
     </section>
   </main>
 </body>

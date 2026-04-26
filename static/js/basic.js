@@ -1,133 +1,134 @@
 import { postJSON } from './api.js';
-import { setCurrent, loadDataURLToCanvas, refreshInspect, pushHistory, showToast, setFileName, CURRENT } from './state.js';
+import { canEncodeClientSide, dataURLToBlob } from './blob_utils.js';
+import { convertBlob, flipBlob, resizeBlob, rotateBlob } from './client_ops.js';
+import {
+  CURRENT,
+  IS_GIF,
+  getCurrentBlob,
+  getCurrentDataURL,
+  replaceCurrentBlob,
+  showToast,
+} from './state.js';
+
+function requireStaticImage() {
+  if (!CURRENT || !getCurrentBlob()) return false;
+  if (IS_GIF) {
+    showToast('Use the GIF panel to preserve animation.', 'info');
+    return false;
+  }
+  return true;
+}
 
 export function wireBasic() {
-  // Rotate -90
   document.getElementById('btnRotNeg90')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!requireStaticImage()) return;
     try {
-      const j = await postJSON('/api/rotate', { image: CURRENT, degrees: -90, expand: true });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('Rotate −90°');
-    } catch (e) {
+      const blob = await rotateBlob(getCurrentBlob(), -90, true);
+      await replaceCurrentBlob(blob, { recordHistory: true, label: 'Rotate -90deg' });
+    } catch (_) {
       showToast('Rotation failed', 'error');
     }
   });
 
-  // Rotate +90
   document.getElementById('btnRotPos90')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!requireStaticImage()) return;
     try {
-      const j = await postJSON('/api/rotate', { image: CURRENT, degrees: 90, expand: true });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('Rotate +90°');
-    } catch (e) {
+      const blob = await rotateBlob(getCurrentBlob(), 90, true);
+      await replaceCurrentBlob(blob, { recordHistory: true, label: 'Rotate +90deg' });
+    } catch (_) {
       showToast('Rotation failed', 'error');
     }
   });
 
-  // Custom rotation
   document.getElementById('btnRotate')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-    const deg = parseFloat(document.getElementById('rotateDeg')?.value || '0');
+    if (!requireStaticImage()) return;
+    const degrees = parseFloat(document.getElementById('rotateDeg')?.value || '0');
     try {
-      const j = await postJSON('/api/rotate', { image: CURRENT, degrees: deg, expand: true });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Rotate ${deg}°`);
-    } catch (e) {
+      const blob = await rotateBlob(getCurrentBlob(), degrees, true);
+      await replaceCurrentBlob(blob, { recordHistory: true, label: `Rotate ${degrees}deg` });
+    } catch (_) {
       showToast('Rotation failed', 'error');
     }
   });
 
-  // Flip horizontal
   document.getElementById('btnFlipH')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!requireStaticImage()) return;
     try {
-      const j = await postJSON('/api/flip', { image: CURRENT, axis: 'h' });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('Flip horizontal');
-    } catch (e) {
+      const blob = await flipBlob(getCurrentBlob(), 'h');
+      await replaceCurrentBlob(blob, { recordHistory: true, label: 'Flip horizontal' });
+    } catch (_) {
       showToast('Flip failed', 'error');
     }
   });
 
-  // Flip vertical
   document.getElementById('btnFlipV')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!requireStaticImage()) return;
     try {
-      const j = await postJSON('/api/flip', { image: CURRENT, axis: 'v' });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory('Flip vertical');
-    } catch (e) {
+      const blob = await flipBlob(getCurrentBlob(), 'v');
+      await replaceCurrentBlob(blob, { recordHistory: true, label: 'Flip vertical' });
+    } catch (_) {
       showToast('Flip failed', 'error');
     }
   });
 
-  // Resize
   document.getElementById('btnResize')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
-    const w = parseInt(document.getElementById('resizeW')?.value || '0');
-    const h = parseInt(document.getElementById('resizeH')?.value || '0');
-    const keep = document.getElementById('keepAspect')?.checked ?? true;
+    if (!requireStaticImage()) return;
+    const width = parseInt(document.getElementById('resizeW')?.value || '0', 10);
+    const height = parseInt(document.getElementById('resizeH')?.value || '0', 10);
+    const keepAspect = document.getElementById('keepAspect')?.checked ?? true;
     const method = document.getElementById('resampleMethod')?.value || 'lanczos';
-    
-    if (!w || !h) {
-      showToast('Please enter valid dimensions', 'error');
+
+    if (!width || !height) {
+      showToast('Please enter valid dimensions.', 'error');
       return;
     }
-    
+
     try {
-      const j = await postJSON('/api/resize', { 
-        image: CURRENT, 
-        width: w, 
-        height: h, 
-        keep_aspect: keep, 
-        method 
+      const blob = await resizeBlob(getCurrentBlob(), width, height, keepAspect, method);
+      await replaceCurrentBlob(blob, {
+        recordHistory: true,
+        label: `Resize to ${width}x${height} (${method})`,
       });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Resize to ${w}×${h} (${method})`);
-    } catch (e) {
+    } catch (_) {
       showToast('Resize failed', 'error');
     }
   });
 
-  // Convert
   document.getElementById('btnConvert')?.addEventListener('click', async () => {
-    if (!CURRENT) return;
+    if (!CURRENT || !getCurrentBlob()) return;
     const to = document.getElementById('convertTo')?.value || 'png';
-    const quality = parseInt(document.getElementById('convertQuality')?.value || '92');
-    
+    const quality = parseInt(document.getElementById('convertQuality')?.value || '92', 10);
+
     try {
-      const j = await postJSON('/api/convert', { image: CURRENT, to, quality });
-      setCurrent(j.img);
-      loadDataURLToCanvas(j.img);
-      await refreshInspect();
-      pushHistory(`Convert → ${to.toUpperCase()}`);
+      if (!IS_GIF && canEncodeClientSide(to)) {
+        const blob = await convertBlob(getCurrentBlob(), to, quality);
+        await replaceCurrentBlob(blob, {
+          recordHistory: true,
+          label: `Convert to ${to.toUpperCase()}`,
+          isGif: false,
+        });
+      } else {
+        const j = await postJSON('/api/convert', {
+          image: await getCurrentDataURL(),
+          to,
+          quality,
+        });
+        const blob = await dataURLToBlob(j.img);
+        await replaceCurrentBlob(blob, {
+          recordHistory: true,
+          label: `Convert to ${to.toUpperCase()}`,
+          isGif: to === 'gif',
+        });
+      }
       showToast(`Converted to ${to.toUpperCase()}`, 'success');
-    } catch (e) {
+    } catch (_) {
       showToast('Conversion failed', 'error');
     }
   });
 
-  // Rename
   document.getElementById('btnRename')?.addEventListener('click', () => {
-    const current = document.getElementById('fileName')?.textContent || 'untitled';
-    const newName = prompt('New filename (without extension):', current);
-    if (newName && newName.trim()) {
-      setFileName(newName.trim());
-      pushHistory(`Renamed to "${newName.trim()}"`);
-    }
+    const input = document.getElementById('fileNameInput');
+    input?.focus();
+    input?.select?.();
   });
 }

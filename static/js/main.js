@@ -1,4 +1,4 @@
-import { initStateFromStorage, bootPreview, saveOnUnload, setFileName, pushHistory } from './state.js';
+import { bootPreview, initStateFromStorage, saveOnUnload, wireStateUI } from './state.js';
 import { wireOpeners } from './io.js';
 import { wireTabs } from './tabs.js';
 import { wireAspectCoupling } from './aspect.js';
@@ -12,10 +12,7 @@ import { wireExporter } from './exporter.js';
 import { wireMetadata } from './metadata.js';
 
 (async function start() {
-  // Try to restore session
-  const restored = initStateFromStorage();
-
-  // Wire all UI modules
+  wireStateUI();
   wireOpeners();
   wireTabs();
   wireAspectCoupling();
@@ -28,19 +25,11 @@ import { wireMetadata } from './metadata.js';
   wireExporter();
   wireMetadata();
 
-  // Boot with checkerboard if no session restored
+  const restored = await initStateFromStorage();
   if (!restored) {
     bootPreview();
   }
 
-  // Support rename event from basic.js
-  window.addEventListener('rename-file', (ev) => {
-    setFileName(ev.detail.name);
-    pushHistory(`Rename to "${document.getElementById('fileName')?.textContent || ev.detail.name}"`);
-  });
-
-  // Auto-save on unload
   saveOnUnload();
-
   console.log('Image Lab initialized');
 })();

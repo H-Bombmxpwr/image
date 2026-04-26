@@ -1,6 +1,7 @@
 import base64
 import io
-from PIL import Image, ImageStat, ExifTags
+import json
+from PIL import Image, ImageStat, ExifTags, PngImagePlugin
 from PIL.ExifTags import TAGS, GPSTAGS
 from .compat import Resampling
 
@@ -14,6 +15,19 @@ ALLOWED_EXPORT = {
     "gif":  ("GIF",  "image/gif"),
 }
 
+EXIF_TEXT_TAGS = {
+    "title": 270,
+    "description": 270,
+    "make": 271,
+    "model": 272,
+    "software": 305,
+    "datetime": 306,
+    "artist": 315,
+    "copyright": 33432,
+    "comment": 37510,
+}
+
+
 def b64_to_image(data_url: str) -> Image.Image:
     """Convert a base64 data URL to a PIL Image."""
     if "," in data_url:
@@ -23,12 +37,62 @@ def b64_to_image(data_url: str) -> Image.Image:
     img.load()
     return img
 
-def image_to_dataurl(img: Image.Image, fmt="PNG", quality=92) -> str:
-    """Convert a PIL Image to a base64 data URL."""
-    buf = io.BytesIO()
+
+def normalize_metadata(metadata: dict | None) -> dict:
+    """Coerce metadata values to simple export-friendly strings."""
+    clean = {}
+    for key, value in (metadata or {}).items():
+        if value is None:
+            continue
+        if isinstance(value, (dict, list, tuple)):
+            clean[str(key)] = json.dumps(value, ensure_ascii=True)
+        else:
+            clean[str(key)] = str(value)
+    return clean
+
+
+def _prepare_exif(img: Image.Image, metadata: dict) -> bytes | None:
+    metadata = normalize_metadata(metadata)
+    if not metadata:
+      return None
+
+    exif = img.getexif()
+    for key, value in metadata.items():
+        tag = EXIF_TEXT_TAGS.get(key.lower())
+        if tag is None:
+            continue
+        exif[tag] = value
+
+    extra = {k: v for k, v in metadata.items() if k.lower() not in EXIF_TEXT_TAGS}
+    if extra:
+        payload = json.dumps(extra, ensure_ascii=True)
+        exif[37510] = payload
+        if 270 not in exif:
+            exif[270] = payload
+
+    try:
+        return exif.tobytes()
+    except Exception:
+        return None
+
+
+def _prepare_pnginfo(metadata: dict) -> PngImagePlugin.PngInfo | None:
+    metadata = normalize_metadata(metadata)
+    if not metadata:
+        return None
+
+    pnginfo = PngImagePlugin.PngInfo()
+    for key, value in metadata.items():
+        pnginfo.add_text(key, value)
+    return pnginfo
+
+
+def _save_with_metadata(img: Image.Image, buf: io.BytesIO, fmt: str, quality: int, metadata: dict | None = None):
     save_kwargs = {}
-    
-    if fmt.upper() == "JPEG":
+    fmt_upper = fmt.upper()
+    metadata = normalize_metadata(metadata)
+
+    if fmt_upper == "JPEG":
         if img.mode in ("RGBA", "LA", "P"):
             bg = Image.new("RGB", img.size, (255, 255, 255))
             if img.mode == "P":
@@ -42,152 +106,134 @@ def image_to_dataurl(img: Image.Image, fmt="PNG", quality=92) -> str:
             img = img.convert("RGB")
         save_kwargs["quality"] = int(quality)
         save_kwargs["optimize"] = True
-        
-    elif fmt.upper() == "WEBP":
+
+    elif fmt_upper == "WEBP":
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGBA" if "A" in img.mode else "RGB")
         save_kwargs["quality"] = int(quality)
-        
-    elif fmt.upper() == "PNG":
+        save_kwargs["method"] = 6
+
+    elif fmt_upper == "PNG":
         save_kwargs["optimize"] = True
-        
-    elif fmt.upper() == "GIF":
+        pnginfo = _prepare_pnginfo(metadata)
+        if pnginfo:
+            save_kwargs["pnginfo"] = pnginfo
+
+    elif fmt_upper == "GIF":
         if img.mode not in ("P", "L"):
             img = img.convert("P", palette=Image.ADAPTIVE, colors=256)
-    
+        if metadata.get("comment"):
+            save_kwargs["comment"] = metadata["comment"].encode("utf-8", errors="ignore")
+
+    if fmt_upper in {"JPEG", "WEBP", "TIFF"}:
+        exif_bytes = _prepare_exif(img, metadata)
+        if exif_bytes:
+            save_kwargs["exif"] = exif_bytes
+
     img.save(buf, format=fmt, **save_kwargs)
-    mime = next((m for k, (f, m) in ALLOWED_EXPORT.items() if f == fmt.upper()), "image/png")
+
+
+def image_to_dataurl(img: Image.Image, fmt="PNG", quality=92) -> str:
+    """Convert a PIL Image to a base64 data URL."""
+    buf = io.BytesIO()
+    _save_with_metadata(img, buf, fmt, quality)
+    mime = next((m for _, (f, m) in ALLOWED_EXPORT.items() if f == fmt.upper()), "image/png")
     return f"data:{mime};base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
+
 def exif_to_dict(img: Image.Image) -> dict:
-    """Extract EXIF metadata from an image into a readable dictionary."""
+    """Extract EXIF and embedded textual metadata into a readable dictionary."""
     result = {}
-    
+
     try:
         exif = img.getexif()
-        if not exif:
-            return {}
-        
-        # Process standard EXIF tags
-        for tag_id, value in exif.items():
-            tag_name = TAGS.get(tag_id, str(tag_id))
-            
-            # Handle bytes
-            if isinstance(value, bytes):
+        if exif:
+            for tag_id, value in exif.items():
+                tag_name = TAGS.get(tag_id, str(tag_id))
+
+                if isinstance(value, bytes):
+                    try:
+                        value = value.decode(errors="ignore")
+                    except Exception:
+                        value = f"<binary: {len(value)} bytes>"
+
+                if isinstance(value, tuple):
+                    value = ", ".join(str(v) for v in value)
+
+                result[tag_name] = value
+
+            for ifd_id in ExifTags.IFD:
                 try:
-                    value = value.decode(errors="ignore")
-                except Exception:
-                    value = f"<binary: {len(value)} bytes>"
-            
-            # Handle tuples (like GPS coordinates)
-            if isinstance(value, tuple):
-                value = ", ".join(str(v) for v in value)
-            
-            result[tag_name] = value
-        
-        # Process IFD (Image File Directory) data
-        for ifd_id in ExifTags.IFD:
-            try:
-                ifd = exif.get_ifd(ifd_id)
-                if ifd:
+                    ifd = exif.get_ifd(ifd_id)
+                    if not ifd:
+                        continue
                     ifd_name = ifd_id.name
                     for tag_id, value in ifd.items():
-                        if ifd_id == ExifTags.IFD.GPSInfo:
-                            tag_name = GPSTAGS.get(tag_id, str(tag_id))
-                        else:
-                            tag_name = TAGS.get(tag_id, str(tag_id))
-                        
+                        tag_name = GPSTAGS.get(tag_id, str(tag_id)) if ifd_id == ExifTags.IFD.GPSInfo else TAGS.get(tag_id, str(tag_id))
                         if isinstance(value, bytes):
                             try:
                                 value = value.decode(errors="ignore")
                             except Exception:
                                 value = f"<binary: {len(value)} bytes>"
-                        
                         result[f"{ifd_name}:{tag_name}"] = value
-            except Exception:
+                except Exception:
+                    continue
+
+        for key, value in getattr(img, "info", {}).items():
+            if key in {"exif", "icc_profile"}:
                 continue
-        
-        # Format GPS coordinates if available
-        if "GPSInfo:GPSLatitude" in result and "GPSInfo:GPSLongitude" in result:
-            try:
-                lat = result.get("GPSInfo:GPSLatitude")
-                lon = result.get("GPSInfo:GPSLongitude")
-                lat_ref = result.get("GPSInfo:GPSLatitudeRef", "N")
-                lon_ref = result.get("GPSInfo:GPSLongitudeRef", "E")
-                
-                if lat and lon:
-                    result["GPS_Coordinates"] = f"{lat} {lat_ref}, {lon} {lon_ref}"
-            except Exception:
-                pass
-        
+            if isinstance(value, bytes):
+                try:
+                    value = value.decode(errors="ignore")
+                except Exception:
+                    value = f"<binary: {len(value)} bytes>"
+            elif isinstance(value, (dict, list, tuple)):
+                value = json.dumps(value, ensure_ascii=True)
+            result[f"info:{key}"] = value
+
         return result
-        
-    except Exception as e:
-        return {"error": str(e)}
+    except Exception as exc:
+        return {"error": str(exc)}
+
 
 def write_exif(img: Image.Image, metadata: dict) -> Image.Image:
-    """Write EXIF metadata to an image."""
+    """Bake supported metadata into an image and re-open it."""
     try:
-        from PIL.ExifTags import Base
-        
-        # Create new EXIF data
-        exif = img.getexif()
-        
-        # Map common metadata names to EXIF tags
-        tag_mapping = {
-            "artist": Base.Artist,
-            "copyright": Base.Copyright,
-            "description": Base.ImageDescription,
-            "software": Base.Software,
-            "datetime": Base.DateTime,
-            "make": Base.Make,
-            "model": Base.Model,
-        }
-        
-        for key, value in metadata.items():
-            key_lower = key.lower()
-            if key_lower in tag_mapping:
-                exif[tag_mapping[key_lower]] = str(value)
-        
-        # Save with new EXIF
         buf = io.BytesIO()
-        img.save(buf, format=img.format or "PNG", exif=exif)
+        fmt = (img.format or "PNG").upper()
+        _save_with_metadata(img, buf, fmt, 92, metadata)
         buf.seek(0)
-        return Image.open(buf)
-        
+        out = Image.open(buf)
+        out.load()
+        return out
     except Exception:
         return img
+
 
 def stats_for(img: Image.Image) -> dict:
     """Get statistics for an image."""
     fmt = (img.format or "").upper()
     mode = img.mode
-    w, h = img.size
-    
-    # Handle different image modes for stats
-    if mode in ("RGBA", "RGB", "L", "LA"):
-        stat_img = img.convert("RGB") if mode != "RGB" else img
+    width, height = img.size
+
+    try:
+        stat_img = img.convert("RGB")
         stat = ImageStat.Stat(stat_img)
         mean = tuple(int(x) for x in stat.mean)
-    else:
-        try:
-            stat_img = img.convert("RGB")
-            stat = ImageStat.Stat(stat_img)
-            mean = tuple(int(x) for x in stat.mean)
-        except Exception:
-            mean = (0, 0, 0)
-    
-    # Check if animated
-    is_animated = getattr(img, "is_animated", False)
-    n_frames = getattr(img, "n_frames", 1)
-    
+    except Exception:
+        mean = (0, 0, 0)
+
     return {
         "format": fmt,
         "mode": mode,
-        "width": w,
-        "height": h,
+        "width": width,
+        "height": height,
         "mean_rgb": mean,
-        "is_animated": is_animated,
-        "frame_count": n_frames
+        "is_animated": getattr(img, "is_animated", False),
+        "frame_count": getattr(img, "n_frames", 1),
+        "loop": getattr(img, "info", {}).get("loop"),
     }
+
 
 def dataurl_bytes(data_url: str) -> int:
     """Calculate the byte size of a base64 data URL."""
@@ -196,15 +242,17 @@ def dataurl_bytes(data_url: str) -> int:
     pad = data_url.count("=")
     return (len(data_url) * 3) // 4 - pad
 
+
 def fmt_size(num_bytes: int) -> str:
     """Format byte size as human-readable string."""
     units = ["B", "KB", "MB", "GB"]
-    s = float(num_bytes)
-    for u in units:
-        if s < 1024 or u == "GB":
-            return f"{s:.1f} {u}"
-        s /= 1024
-    return f"{s:.1f} GB"
+    size = float(num_bytes)
+    for unit in units:
+        if size < 1024 or unit == "GB":
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} GB"
+
 
 def resample_from_name(name: str):
     """Get PIL resampling mode from string name."""
