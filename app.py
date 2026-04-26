@@ -81,10 +81,17 @@ def api_background_remove():
 @app.post("/api/background_remove_ai")
 def api_background_remove_ai():
     if not HAS_REMBG:
-        return jsonify({"error": "Local AI background removal is not available."}), 400
+        return jsonify({"error": "Local AI background removal is not available. Install rembg and onnxruntime on the server."}), 400
     d = request.json
     img = b64_to_image(d["image"])
-    return jsonify({"img": image_to_dataurl(remove_bg_ai(img), "PNG")})
+    try:
+        out = remove_bg_ai(img)
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        app.logger.exception("AI background removal failed")
+        return jsonify({"error": "AI background removal failed on the server."}), 500
+    return jsonify({"img": image_to_dataurl(out, "PNG")})
 
 
 @app.post("/api/seam_carve")

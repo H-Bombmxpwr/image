@@ -4,6 +4,7 @@ import { CURRENT, getCurrentBlob, replaceCurrentBlob, showToast } from './state.
 let baseBlob = null;
 let previewToken = 0;
 let previewTimer = null;
+let commitTimer = null;
 
 function getSliderValues() {
   return {
@@ -37,6 +38,8 @@ function buildDescription(values) {
 }
 
 function resetSliders() {
+  clearTimeout(previewTimer);
+  clearTimeout(commitTimer);
   const defaults = [
     ['adjBright', 100, 'adjBrightVal', '100%'],
     ['adjContrast', 100, 'adjContrastVal', '100%'],
@@ -105,6 +108,7 @@ async function commitAdjustments() {
 
 async function commitPreviewIfNeeded() {
   clearTimeout(previewTimer);
+  clearTimeout(commitTimer);
   const values = getSliderValues();
   if (!baseBlob && !isDefault(values) && getCurrentBlob()) {
     baseBlob = getCurrentBlob();
@@ -118,6 +122,13 @@ async function commitPreviewIfNeeded() {
     return;
   }
   await commitAdjustments();
+}
+
+function scheduleCommit(delay = 160) {
+  clearTimeout(commitTimer);
+  commitTimer = setTimeout(() => {
+    commitPreviewIfNeeded();
+  }, delay);
 }
 
 export function wireAdjust() {
@@ -145,9 +156,18 @@ export function wireAdjust() {
         previewAdjustments();
       }, 70);
     });
+
+    input.addEventListener('change', () => {
+      scheduleCommit();
+    });
+
+    input.addEventListener('blur', () => {
+      scheduleCommit();
+    });
   });
 
   document.getElementById('btnAdjust')?.addEventListener('click', () => {
+    clearTimeout(commitTimer);
     commitAdjustments();
   });
 
@@ -167,12 +187,10 @@ export function wireAdjust() {
   });
 
   document.addEventListener('imagelab:new-image', () => {
-    clearTimeout(previewTimer);
     resetSliders();
   });
 
   document.addEventListener('imagelab:state-changed', () => {
-    clearTimeout(previewTimer);
     resetSliders();
   });
 

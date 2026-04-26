@@ -167,23 +167,140 @@ function updateMetadataStatus() {
   badge.classList.toggle('is-filled', count > 0);
 }
 
+function isMetadataValueEmpty(value) {
+  if (value == null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+function printableRatio(text) {
+  if (!text) return 1;
+  let printable = 0;
+  for (const char of text) {
+    if (char === '\n' || char === '\r' || char === '\t' || (char >= ' ' && char !== '\x7f')) {
+      printable += 1;
+    }
+  }
+  return printable / text.length;
+}
+
+function cleanMetadataText(value, limit = 240) {
+  const stripped = String(value).replace(/\u0000/g, '').trim();
+  if (!stripped) return '';
+
+  if (printableRatio(stripped) < 0.9) {
+    const preview = stripped
+      .replace(/[^\x20-\x7E]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 72);
+    return preview
+      ? `<binary-like text; preview: ${preview}>`
+      : `<binary-like text; ${String(value).length} chars>`;
+  }
+
+  if (stripped.length > limit) {
+    return `${stripped.slice(0, limit)}... (${stripped.length} chars)`;
+  }
+
+  return stripped;
+}
+
+function normalizeMetadataDisplayValue(value) {
+  if (typeof value === 'string') {
+    return cleanMetadataText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeMetadataDisplayValue(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, item]) => !isMetadataValueEmpty(item))
+        .map(([key, item]) => [key, normalizeMetadataDisplayValue(item)]),
+    );
+  }
+  return value;
+}
+
+function metadataSortWeight(key) {
+  const priority = [
+    'Artist',
+    'Copyright',
+    'ImageDescription',
+    'DateTimeOriginal',
+    'DateTimeDigitized',
+    'DateTime',
+    'Make',
+    'Model',
+    'Orientation',
+    'FNumber',
+    'ExposureTime',
+    'ISOSpeedRatings',
+    'FocalLength',
+    'XResolution',
+    'YResolution',
+  ];
+  const index = priority.indexOf(key);
+  return index === -1 ? priority.length + 1 : index;
+}
+
+function formatMetadataValue(value) {
+  const normalized = normalizeMetadataDisplayValue(value);
+  if (typeof normalized === 'string') {
+    return normalized;
+  }
+  return JSON.stringify(normalized, null, 2);
+}
+
 function updateExif(exif) {
   const content = document.getElementById('exifContent');
   if (!content) return;
 
-  const keys = Object.keys(exif || {}).filter((key) => key !== 'error');
-  if (!keys.length) {
-    content.innerHTML = '<div class="metadata-empty">No metadata loaded</div>';
+  const entries = Object.entries(exif || {})
+    .filter(([key, value]) => key !== 'error' && !isMetadataValueEmpty(value))
+    .sort(([a], [b]) => {
+      const weightDiff = metadataSortWeight(a) - metadataSortWeight(b);
+      return weightDiff || a.localeCompare(b);
+    });
+
+  if (!entries.length) {
+    content.replaceChildren();
+    const empty = document.createElement('div');
+    empty.className = 'metadata-empty';
+    empty.textContent = 'No metadata loaded';
+    content.appendChild(empty);
     updateMetadataStatus();
     return;
   }
 
-  const rows = keys.map((key) => {
-    const rawValue = exif[key];
-    const value = typeof rawValue === 'object' ? JSON.stringify(rawValue) : String(rawValue);
-    return `<tr><td>${key}</td><td>${value}</td></tr>`;
-  }).join('');
-  content.innerHTML = `<table class="metadata-table">${rows}</table>`;
+  const table = document.createElement('table');
+  table.className = 'metadata-table';
+  const body = document.createElement('tbody');
+
+  entries.forEach(([key, rawValue]) => {
+    const row = document.createElement('tr');
+    const keyCell = document.createElement('td');
+    const valueCell = document.createElement('td');
+    const keyLabel = document.createElement('span');
+    const valueLabel = document.createElement('div');
+
+    keyLabel.className = 'metadata-key';
+    keyLabel.textContent = key;
+    valueLabel.className = 'metadata-value';
+    valueLabel.textContent = formatMetadataValue(rawValue);
+
+    keyCell.appendChild(keyLabel);
+    valueCell.appendChild(valueLabel);
+    row.appendChild(keyCell);
+    row.appendChild(valueCell);
+    body.appendChild(row);
+  });
+
+  table.appendChild(body);
+  content.replaceChildren(table);
   updateMetadataStatus();
 }
 

@@ -4,6 +4,7 @@ import { CURRENT, IS_GIF, getCurrentBlob, replaceCurrentBlob, showToast } from '
 let baseBlob = null;
 let previewToken = 0;
 let previewTimer = null;
+let commitTimer = null;
 
 function buildPayload() {
   return {
@@ -51,6 +52,8 @@ function buildDescription(payload) {
 }
 
 function resetControls() {
+  clearTimeout(previewTimer);
+  clearTimeout(commitTimer);
   [
     'fGrayscale',
     'fSepia',
@@ -135,6 +138,7 @@ async function commitFilters() {
 
 async function commitPreviewIfNeeded() {
   clearTimeout(previewTimer);
+  clearTimeout(commitTimer);
   const payload = buildPayload();
   if (!baseBlob && hasAnyFilter(payload) && getCurrentBlob()) {
     baseBlob = getCurrentBlob();
@@ -148,6 +152,13 @@ async function commitPreviewIfNeeded() {
     return;
   }
   await commitFilters();
+}
+
+function scheduleCommit(delay = 180) {
+  clearTimeout(commitTimer);
+  commitTimer = setTimeout(() => {
+    commitPreviewIfNeeded();
+  }, delay);
 }
 
 export function wireFilters() {
@@ -173,6 +184,7 @@ export function wireFilters() {
       previewTimer = setTimeout(() => {
         previewFilters();
       }, 50);
+      scheduleCommit();
     });
   });
 
@@ -185,20 +197,20 @@ export function wireFilters() {
       previewTimer = setTimeout(() => {
         previewFilters();
       }, 50);
+      scheduleCommit();
     });
   });
 
   document.getElementById('btnFilters')?.addEventListener('click', () => {
+    clearTimeout(commitTimer);
     commitFilters();
   });
 
   document.addEventListener('imagelab:new-image', () => {
-    clearTimeout(previewTimer);
     resetControls();
   });
 
   document.addEventListener('imagelab:state-changed', () => {
-    clearTimeout(previewTimer);
     resetControls();
   });
 

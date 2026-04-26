@@ -4,6 +4,18 @@ import json
 from PIL import Image, ImageStat, ExifTags, PngImagePlugin
 from PIL.ExifTags import TAGS, GPSTAGS
 
+NOISY_METADATA_TAGS = {
+    "ExifOffset",
+    "GPSInfo",
+    "Exif:ExifInteroperabilityOffset",
+    "IFD1:JpegIFOffset",
+}
+
+SUMMARY_METADATA_TAGS = {
+    "MakerNote",
+    "info:photoshop",
+}
+
 ALLOWED_EXPORT = {
     "jpeg": ("JPEG", "image/jpeg"),
     "jpg":  ("JPEG", "image/jpeg"),
@@ -50,16 +62,78 @@ def normalize_metadata(metadata: dict | None) -> dict:
     return clean
 
 
+def _is_empty_metadata_value(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, (list, tuple, dict)):
+        return len(value) == 0
+    return False
+
+
+def _printable_ratio(text: str) -> float:
+    if not text:
+        return 1.0
+    printable = 0
+    for char in text:
+        if char in "\r\n\t" or char.isprintable():
+            printable += 1
+    return printable / len(text)
+
+
+def _clean_string(value: str, *, limit: int = 240):
+    stripped = value.replace("\x00", "").strip()
+    if not stripped:
+        return ""
+
+    if _printable_ratio(stripped) < 0.9:
+        preview = "".join(char if char.isprintable() and char not in "\r\n\t" else " " for char in stripped)
+        preview = " ".join(preview.split())
+        if preview:
+            preview = preview[:72]
+            return f"<binary-like text; preview: {preview}>"
+        return f"<binary-like text; {len(value)} chars>"
+
+    if len(stripped) > limit:
+        return f"{stripped[:limit]}... ({len(stripped)} chars)"
+
+    return stripped
+
+
+def _format_bytes(value: bytes):
+    raw = bytes(value)
+    if not raw:
+        return ""
+
+    stripped = raw.rstrip(b"\x00")
+    if stripped:
+        try:
+            decoded = stripped.decode("ascii")
+            if decoded and _printable_ratio(decoded) >= 0.95:
+                return decoded
+        except Exception:
+            pass
+
+    if len(raw) <= 8 and all(item <= 9 for item in raw):
+        return ".".join(str(item) for item in raw)
+
+    if len(raw) <= 16:
+        return " ".join(f"{item:02X}" for item in raw)
+
+    return f"<binary {len(raw)} bytes>"
+
+
 def _json_safe(value):
     """Convert metadata values into JSON-safe primitives."""
-    if value is None or isinstance(value, (bool, int, float, str)):
+    if value is None or isinstance(value, (bool, int, float)):
         return value
 
+    if isinstance(value, str):
+        return _clean_string(value)
+
     if isinstance(value, bytes):
-        try:
-            return value.decode(errors="ignore")
-        except Exception:
-            return f"<binary: {len(value)} bytes>"
+        return _format_bytes(value)
 
     if isinstance(value, tuple):
         return [_json_safe(item) for item in value]
@@ -78,6 +152,27 @@ def _json_safe(value):
         return value
     except Exception:
         return str(value)
+
+
+def _present_metadata(tag_name: str, value):
+    if tag_name in NOISY_METADATA_TAGS:
+        return None
+
+    safe_value = _json_safe(value)
+    if _is_empty_metadata_value(safe_value):
+        return None
+
+    if tag_name in SUMMARY_METADATA_TAGS:
+        if isinstance(value, (bytes, bytearray)):
+            return f"<embedded binary metadata: {len(value)} bytes>"
+        if isinstance(value, str):
+            return f"<embedded binary metadata: {len(value)} chars>"
+        if isinstance(safe_value, str):
+            return "<embedded binary metadata>"
+        if isinstance(safe_value, dict):
+            return f"<embedded metadata block with {len(safe_value)} entries>"
+
+    return safe_value
 
 
 def _prepare_exif(img: Image.Image, metadata: dict) -> bytes | None:
@@ -179,7 +274,9 @@ def exif_to_dict(img: Image.Image) -> dict:
         if exif:
             for tag_id, value in exif.items():
                 tag_name = TAGS.get(tag_id, str(tag_id))
-                result[tag_name] = _json_safe(value)
+                present = _present_metadata(tag_name, value)
+                if present is not None:
+                    result[tag_name] = present
 
             for ifd_id in ExifTags.IFD:
                 try:
@@ -189,14 +286,20 @@ def exif_to_dict(img: Image.Image) -> dict:
                     ifd_name = ifd_id.name
                     for tag_id, value in ifd.items():
                         tag_name = GPSTAGS.get(tag_id, str(tag_id)) if ifd_id == ExifTags.IFD.GPSInfo else TAGS.get(tag_id, str(tag_id))
-                        result[f"{ifd_name}:{tag_name}"] = _json_safe(value)
+                        full_tag = f"{ifd_name}:{tag_name}"
+                        present = _present_metadata(full_tag, value)
+                        if present is not None:
+                            result[full_tag] = present
                 except Exception:
                     continue
 
         for key, value in getattr(img, "info", {}).items():
             if key in {"exif", "icc_profile"}:
                 continue
-            result[f"info:{key}"] = _json_safe(value)
+            full_tag = f"info:{key}"
+            present = _present_metadata(full_tag, value)
+            if present is not None:
+                result[full_tag] = present
 
         return result
     except Exception as exc:

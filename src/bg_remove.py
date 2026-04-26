@@ -4,22 +4,36 @@ import importlib.util
 import io
 import os
 
-HAS_REMBG = importlib.util.find_spec("rembg") is not None
+HAS_REMBG = (
+    importlib.util.find_spec("rembg") is not None and
+    importlib.util.find_spec("onnxruntime") is not None
+)
 _remove_fn = None
+_new_session_fn = None
 _session = None
 
-def _get_remove():
-    global _remove_fn
-    if _remove_fn is None:
-        from rembg import remove
-        _remove_fn = remove
-    return _remove_fn
+def _load_rembg_symbols():
+    global _remove_fn, _new_session_fn
+    if _remove_fn is not None and _new_session_fn is not None:
+        return _remove_fn, _new_session_fn
+
+    try:
+        from rembg import new_session, remove
+    except ModuleNotFoundError as exc:
+        missing = exc.name or "required dependency"
+        raise RuntimeError(f"AI background removal is unavailable: missing {missing}.") from exc
+    except Exception as exc:
+        raise RuntimeError(f"AI background removal could not be initialized: {exc}") from exc
+
+    _remove_fn = remove
+    _new_session_fn = new_session
+    return _remove_fn, _new_session_fn
 
 
 def _get_session():
     global _session
     if _session is None:
-        from rembg import new_session
+        _, new_session = _load_rembg_symbols()
         model_name = os.environ.get("REMBG_MODEL", "isnet-general-use")
         _session = new_session(model_name)
     return _session
@@ -27,7 +41,7 @@ def _get_session():
 def remove_bg_ai(img: Image.Image) -> Image.Image:
     """Remove background using AI (rembg library)."""
     if not HAS_REMBG:
-        raise RuntimeError("rembg not installed")
+        raise RuntimeError("AI background removal is unavailable: install rembg and onnxruntime.")
 
     if img.mode not in ("RGB", "RGBA"):
         img = img.convert("RGB")
@@ -35,7 +49,8 @@ def remove_bg_ai(img: Image.Image) -> Image.Image:
     buf = io.BytesIO()
     img.save(buf, format="PNG")
 
-    output = _get_remove()(
+    remove, _ = _load_rembg_symbols()
+    output = remove(
         buf.getvalue(),
         session=_get_session(),
         alpha_matting=os.environ.get("REMBG_ALPHA_MATTING", "1") != "0",
