@@ -26,6 +26,10 @@ let currentUrl = null;
 let originalUrl = null;
 let inspectToken = 0;
 let saveTimer = null;
+let taskProgressTimer = null;
+let taskProgressHideTimer = null;
+let taskProgressValue = 0;
+let taskProgressMessage = 'Working...';
 
 const DB_NAME = 'imagelab-session';
 const DB_STORE = 'session';
@@ -397,6 +401,56 @@ function renderEmptyStage() {
   updateGifTabVisibility();
 }
 
+function getTaskProgressElements() {
+  return {
+    shell: document.getElementById('taskProgress'),
+    label: document.getElementById('taskProgressLabel'),
+    value: document.getElementById('taskProgressValue'),
+    track: document.querySelector('#taskProgress .task-progress-track'),
+    bar: document.getElementById('taskProgressBar'),
+  };
+}
+
+function stopTaskProgressTimers() {
+  clearInterval(taskProgressTimer);
+  clearTimeout(taskProgressHideTimer);
+  taskProgressTimer = null;
+  taskProgressHideTimer = null;
+}
+
+function renderTaskProgress(status = 'working') {
+  const { shell, label, value, track, bar } = getTaskProgressElements();
+  if (!shell || !label || !value || !track || !bar) return;
+
+  const normalized = Math.max(0, Math.min(100, taskProgressValue));
+  shell.classList.remove('is-success', 'is-error');
+  if (status === 'success') shell.classList.add('is-success');
+  if (status === 'error') shell.classList.add('is-error');
+  shell.classList.add('is-visible');
+  shell.setAttribute('aria-hidden', 'false');
+  label.textContent = taskProgressMessage;
+  value.textContent = `${Math.round(normalized)}%`;
+  track.setAttribute('aria-valuenow', String(Math.round(normalized)));
+  bar.style.width = `${normalized}%`;
+}
+
+function hideTaskProgress() {
+  stopTaskProgressTimers();
+  const { shell, label, value, track, bar } = getTaskProgressElements();
+  if (!shell || !label || !value || !track || !bar) return;
+
+  shell.classList.remove('is-visible', 'is-success', 'is-error');
+  shell.setAttribute('aria-hidden', 'true');
+  taskProgressHideTimer = setTimeout(() => {
+    taskProgressValue = 0;
+    taskProgressMessage = 'Working...';
+    label.textContent = taskProgressMessage;
+    value.textContent = '0%';
+    track.setAttribute('aria-valuenow', '0');
+    bar.style.width = '0%';
+  }, 220);
+}
+
 export function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   if (!container) return null;
@@ -429,6 +483,56 @@ export function showLoadingToast(message) {
       if (!toast.isConnected) return;
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 250);
+    },
+  };
+}
+
+export function startTaskProgress(message, options = {}) {
+  const startAt = Math.max(4, Math.min(35, options.startAt ?? 8));
+  const maxAuto = Math.max(startAt + 8, Math.min(96, options.maxAuto ?? 92));
+  const intervalMs = Math.max(180, options.intervalMs ?? 280);
+
+  stopTaskProgressTimers();
+  taskProgressValue = startAt;
+  taskProgressMessage = message || 'Working...';
+  renderTaskProgress('working');
+
+  taskProgressTimer = setInterval(() => {
+    const remaining = maxAuto - taskProgressValue;
+    if (remaining <= 0.35) return;
+    taskProgressValue = Math.min(maxAuto, taskProgressValue + Math.max(0.8, remaining * 0.12));
+    renderTaskProgress('working');
+  }, intervalMs);
+
+  return {
+    setMessage(nextMessage) {
+      taskProgressMessage = nextMessage || taskProgressMessage;
+      renderTaskProgress('working');
+    },
+    setProgress(nextValue) {
+      taskProgressValue = Math.max(0, Math.min(100, nextValue));
+      renderTaskProgress('working');
+    },
+    complete(nextMessage = 'Done') {
+      stopTaskProgressTimers();
+      taskProgressMessage = nextMessage;
+      taskProgressValue = 100;
+      renderTaskProgress('success');
+      taskProgressHideTimer = setTimeout(() => {
+        hideTaskProgress();
+      }, 650);
+    },
+    fail(nextMessage = 'Task failed') {
+      stopTaskProgressTimers();
+      taskProgressMessage = nextMessage;
+      taskProgressValue = Math.max(taskProgressValue, 96);
+      renderTaskProgress('error');
+      taskProgressHideTimer = setTimeout(() => {
+        hideTaskProgress();
+      }, 900);
+    },
+    dismiss() {
+      hideTaskProgress();
     },
   };
 }

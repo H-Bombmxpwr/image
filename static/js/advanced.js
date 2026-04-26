@@ -12,6 +12,7 @@ import {
   getCurrentBlob,
   replaceCurrentBlob,
   setAnimationInfo,
+  startTaskProgress,
   showLoadingToast,
   showToast,
 } from './state.js';
@@ -63,18 +64,41 @@ export function wireAdvanced() {
 
   document.getElementById('btnBgRemoveAI')?.addEventListener('click', async () => {
     if (!requireStaticImage()) return;
-    const loading = showLoadingToast('Running local AI cutout...');
+    const aiButton = document.getElementById('btnBgRemoveAI');
+    const originalLabel = aiButton?.textContent || 'Remove background';
+    const progress = startTaskProgress('Preparing AI background removal...', {
+      startAt: 8,
+      maxAuto: 95,
+      intervalMs: 320,
+    });
+    const stageTimers = [
+      setTimeout(() => progress.setMessage('Loading the local AI model...'), 500),
+      setTimeout(() => progress.setMessage('Separating subject from background...'), 1800),
+      setTimeout(() => progress.setMessage('Refining edges and transparency...'), 4300),
+    ];
+
+    if (aiButton) {
+      aiButton.disabled = true;
+      aiButton.textContent = 'Removing...';
+    }
+
     try {
       const j = await postJSON('/api/background_remove_ai', {
         image: await blobToDataURL(getCurrentBlob()),
       });
       const blob = await dataURLToBlob(j.img);
       await replaceCurrentBlob(blob, { recordHistory: true, label: 'AI background removal' });
-      loading.dismiss();
+      progress.complete('AI cutout ready');
       showToast('Background removed', 'success');
-    } catch (_) {
-      loading.dismiss();
-      showToast('AI background removal failed', 'error');
+    } catch (error) {
+      progress.fail('AI background removal failed');
+      showToast(error?.message || 'AI background removal failed', 'error');
+    } finally {
+      stageTimers.forEach((timer) => clearTimeout(timer));
+      if (aiButton) {
+        aiButton.disabled = false;
+        aiButton.textContent = originalLabel;
+      }
     }
   });
 

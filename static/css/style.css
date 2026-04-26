@@ -45,7 +45,8 @@ body {
 }
 
 body.has-topbar {
-  padding-top: clamp(112px, 12vw, 150px);
+  --topbar-offset: clamp(112px, 12vw, 150px);
+  padding-top: var(--topbar-offset);
 }
 
 a {
@@ -80,6 +81,98 @@ textarea {
 
 .topbar-simple {
   grid-template-columns: 1fr auto;
+}
+
+.task-progress {
+  position: fixed;
+  top: calc(var(--topbar-offset, 124px) - 12px);
+  left: 50%;
+  z-index: 75;
+  width: min(520px, calc(100vw - 28px));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-12px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.task-progress.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.task-progress-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(34, 199, 200, 0.2);
+  background: rgba(8, 17, 22, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.32);
+}
+
+.task-progress.is-success .task-progress-card {
+  border-color: rgba(46, 211, 153, 0.34);
+}
+
+.task-progress.is-error .task-progress-card {
+  border-color: rgba(255, 107, 107, 0.34);
+}
+
+.task-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.task-progress-label,
+.task-progress-value {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+.task-progress-label {
+  color: var(--text-soft);
+}
+
+.task-progress-value {
+  color: var(--accent-2);
+}
+
+.task-progress.is-success .task-progress-value {
+  color: var(--success);
+}
+
+.task-progress.is-error .task-progress-value {
+  color: var(--error);
+}
+
+.task-progress-track {
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.task-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 18px rgba(34, 199, 200, 0.2);
+  transition: width 220ms ease, background 180ms ease;
+}
+
+.task-progress.is-success .task-progress-bar {
+  background: linear-gradient(90deg, #22c7c8, #2ed399);
+}
+
+.task-progress.is-error .task-progress-bar {
+  background: linear-gradient(90deg, #ff6b35, #ff6b6b);
 }
 
 .brand-kicker,
@@ -1101,7 +1194,8 @@ html {
 
 @media (max-width: 760px) {
   body.has-topbar {
-    padding-top: 200px;
+    --topbar-offset: 200px;
+    padding-top: var(--topbar-offset);
   }
 
   .topbar,

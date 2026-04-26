@@ -65,6 +65,18 @@
     </div>
   </header>
 
+  <div id="taskProgress" class="task-progress" aria-live="polite" aria-hidden="true">
+    <div class="task-progress-card">
+      <div class="task-progress-head">
+        <span id="taskProgressLabel" class="task-progress-label">Working...</span>
+        <span id="taskProgressValue" class="task-progress-value">0%</span>
+      </div>
+      <div class="task-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Task progress">
+        <div id="taskProgressBar" class="task-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
   <main class="app-layout">
     <section class="main-content">
       <div class="stage-card">
