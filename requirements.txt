@@ -12,9 +12,9 @@ pillow-heif>=0.16.0
 numpy==2.0.2
 
 # --- Heavy server-side features enabled for deployed builds ---
-seam-carving>=0.1.2
-rembg>=2.0
-onnxruntime>=1.18,<2
+# seam-carving>=0.1.2
+# rembg>=2.0
+# onnxruntime>=1.18,<2
 
 # Optional fallback if seam-carving wheels are unavailable on a target platform.
 # scikit-image>=0.24.0
