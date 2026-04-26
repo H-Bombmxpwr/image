@@ -1,23 +1,21 @@
+import importlib.util
 from PIL import Image
 import numpy as np
 
-HAS_SEAM = True
-SEAM_BACKEND = "seam-carving"
+HAS_SEAM = False
+SEAM_BACKEND = "none"
 
-try:
-    import seam_carving
-except Exception:
-    try:
-        from skimage import transform, filters, color, img_as_ubyte
-        HAS_SEAM = True
-        SEAM_BACKEND = "scikit-image"
-    except Exception:
-        HAS_SEAM = False
-        SEAM_BACKEND = "none"
+if importlib.util.find_spec("seam_carving") is not None:
+    HAS_SEAM = True
+    SEAM_BACKEND = "seam-carving"
+elif importlib.util.find_spec("skimage") is not None:
+    HAS_SEAM = True
+    SEAM_BACKEND = "scikit-image"
 
 def seam_carve(img: Image.Image, target_w: int, target_h: int, order: str, energy_mode: str) -> Image.Image:
     """Content-aware resize using seam carving."""
     if SEAM_BACKEND == "seam-carving":
+        import seam_carving
         dst = seam_carving.resize(
             np.array(img.convert("RGB")),
             (target_w, target_h),

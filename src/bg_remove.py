@@ -1,20 +1,12 @@
 """AI-powered background removal using rembg (lazy-loaded)."""
 from PIL import Image
+import importlib.util
 import io
 import os
 
-HAS_REMBG = False
+HAS_REMBG = importlib.util.find_spec("rembg") is not None
 _remove_fn = None
 _session = None
-
-try:
-    import importlib
-    importlib.import_module("rembg")
-    HAS_REMBG = True
-except ImportError:
-    pass
-except Exception:
-    pass
 
 def _get_remove():
     global _remove_fn

@@ -51,6 +51,36 @@ def normalize_metadata(metadata: dict | None) -> dict:
     return clean
 
 
+def _json_safe(value):
+    """Convert metadata values into JSON-safe primitives."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+
+    if isinstance(value, bytes):
+        try:
+            return value.decode(errors="ignore")
+        except Exception:
+            return f"<binary: {len(value)} bytes>"
+
+    if isinstance(value, tuple):
+        return [_json_safe(item) for item in value]
+
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+
+    if isinstance(value, dict):
+        safe = {}
+        for key, item in value.items():
+            safe[str(key)] = _json_safe(item)
+        return safe
+
+    try:
+        json.dumps(value)
+        return value
+    except Exception:
+        return str(value)
+
+
 def _prepare_exif(img: Image.Image, metadata: dict) -> bytes | None:
     metadata = normalize_metadata(metadata)
     if not metadata:
@@ -150,17 +180,7 @@ def exif_to_dict(img: Image.Image) -> dict:
         if exif:
             for tag_id, value in exif.items():
                 tag_name = TAGS.get(tag_id, str(tag_id))
-
-                if isinstance(value, bytes):
-                    try:
-                        value = value.decode(errors="ignore")
-                    except Exception:
-                        value = f"<binary: {len(value)} bytes>"
-
-                if isinstance(value, tuple):
-                    value = ", ".join(str(v) for v in value)
-
-                result[tag_name] = value
+                result[tag_name] = _json_safe(value)
 
             for ifd_id in ExifTags.IFD:
                 try:
@@ -170,26 +190,14 @@ def exif_to_dict(img: Image.Image) -> dict:
                     ifd_name = ifd_id.name
                     for tag_id, value in ifd.items():
                         tag_name = GPSTAGS.get(tag_id, str(tag_id)) if ifd_id == ExifTags.IFD.GPSInfo else TAGS.get(tag_id, str(tag_id))
-                        if isinstance(value, bytes):
-                            try:
-                                value = value.decode(errors="ignore")
-                            except Exception:
-                                value = f"<binary: {len(value)} bytes>"
-                        result[f"{ifd_name}:{tag_name}"] = value
+                        result[f"{ifd_name}:{tag_name}"] = _json_safe(value)
                 except Exception:
                     continue
 
         for key, value in getattr(img, "info", {}).items():
             if key in {"exif", "icc_profile"}:
                 continue
-            if isinstance(value, bytes):
-                try:
-                    value = value.decode(errors="ignore")
-                except Exception:
-                    value = f"<binary: {len(value)} bytes>"
-            elif isinstance(value, (dict, list, tuple)):
-                value = json.dumps(value, ensure_ascii=True)
-            result[f"info:{key}"] = value
+            result[f"info:{key}"] = _json_safe(value)
 
         return result
     except Exception as exc:
