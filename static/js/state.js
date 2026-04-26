@@ -41,6 +41,12 @@ function deepClone(value) {
   return JSON.parse(JSON.stringify(value ?? {}));
 }
 
+function dispatchStateChanged(reason) {
+  document.dispatchEvent(new CustomEvent('imagelab:state-changed', {
+    detail: { reason },
+  }));
+}
+
 function revokePreviewUrl(which) {
   if (which === 'current' && currentUrl) {
     URL.revokeObjectURL(currentUrl);
@@ -276,17 +282,38 @@ function renderEmptyStage() {
 
 export function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
-  if (!container) return;
+  if (!container) return null;
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.textContent = message;
   container.appendChild(toast);
 
-  setTimeout(() => {
+  const dismiss = () => {
+    if (!toast.isConnected) return;
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 250);
-  }, 2600);
+  };
+  setTimeout(dismiss, 2600);
+  return { dismiss };
+}
+
+export function showLoadingToast(message) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return { dismiss: () => {} };
+
+  const toast = document.createElement('div');
+  toast.className = 'toast info is-loading';
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  return {
+    dismiss() {
+      if (!toast.isConnected) return;
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 250);
+    },
+  };
 }
 
 export async function saveState() {
@@ -322,7 +349,7 @@ export async function initStateFromStorage() {
     ORIGINAL_META = cloneMetadata(session.originalMetadata || session.metadata || {});
     ORIGINAL_BLOB = session.originalBlob || session.currentBlob;
     IS_GIF = Boolean(session.isGif);
-    CURRENT_ANALYSIS = deepClone(session.analysis || { is_animated: IS_GIF, frame_count: IS_GIF ? 1 : 1 });
+    CURRENT_ANALYSIS = deepClone(session.analysis || { is_animated: IS_GIF, frame_count: 1 });
 
     revokePreviewUrl('original');
     originalUrl = URL.createObjectURL(ORIGINAL_BLOB);
@@ -424,7 +451,7 @@ export async function openEditorBlob(blob, options = {}) {
   ORIGINAL_META = cloneMetadata(options.originalMetadata || CURRENT_META);
   CURRENT_ANALYSIS = deepClone(options.analysis || {
     is_animated: Boolean(options.isGif),
-    frame_count: options.isGif ? 1 : 1,
+    frame_count: 1,
   });
   IS_GIF = Boolean(options.isGif);
 
@@ -482,6 +509,9 @@ export async function replaceCurrentBlob(blob, options = {}) {
     updateUndoRedoButtons();
   }
   queueSaveState();
+  if (options.recordHistory) {
+    dispatchStateChanged('replace');
+  }
 }
 
 export function pushHistory(label, options = {}) {
@@ -521,6 +551,7 @@ async function restoreSnapshot(snapshot) {
   updateExif(CURRENT_META);
   renderHistory();
   queueSaveState();
+  dispatchStateChanged('restore');
 }
 
 export async function undo() {
@@ -608,7 +639,7 @@ export function loadDataURLToCanvas(source) {
     return;
   }
 
-  if (IS_GIF || String(source).startsWith('data:image/gif')) {
+  if (IS_GIF) {
     showGifPreview(source);
     return;
   }
@@ -853,8 +884,18 @@ export function wireStateUI() {
   ['mousedown', 'touchstart'].forEach((eventName) => {
     compareButton?.addEventListener(eventName, showOriginal);
   });
-  ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach((eventName) => {
+  ['mouseup', 'mouseleave', 'touchend', 'touchcancel', 'blur'].forEach((eventName) => {
     compareButton?.addEventListener(eventName, hideOriginal);
+  });
+  window.addEventListener('pointerup', hideOriginal);
+
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (!CURRENT || IS_GIF) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      loadDataURLToCanvas(CURRENT);
+    }, 120);
   });
 
   document.addEventListener('keydown', async (event) => {

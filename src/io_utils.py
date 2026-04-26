@@ -3,7 +3,6 @@ import io
 import json
 from PIL import Image, ImageStat, ExifTags, PngImagePlugin
 from PIL.ExifTags import TAGS, GPSTAGS
-from .compat import Resampling
 
 ALLOWED_EXPORT = {
     "jpeg": ("JPEG", "image/jpeg"),
@@ -84,7 +83,7 @@ def _json_safe(value):
 def _prepare_exif(img: Image.Image, metadata: dict) -> bytes | None:
     metadata = normalize_metadata(metadata)
     if not metadata:
-      return None
+        return None
 
     exif = img.getexif()
     for key, value in metadata.items():
@@ -204,20 +203,6 @@ def exif_to_dict(img: Image.Image) -> dict:
         return {"error": str(exc)}
 
 
-def write_exif(img: Image.Image, metadata: dict) -> Image.Image:
-    """Bake supported metadata into an image and re-open it."""
-    try:
-        buf = io.BytesIO()
-        fmt = (img.format or "PNG").upper()
-        _save_with_metadata(img, buf, fmt, 92, metadata)
-        buf.seek(0)
-        out = Image.open(buf)
-        out.load()
-        return out
-    except Exception:
-        return img
-
-
 def stats_for(img: Image.Image) -> dict:
     """Get statistics for an image."""
     fmt = (img.format or "").upper()
@@ -260,14 +245,3 @@ def fmt_size(num_bytes: int) -> str:
             return f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} GB"
-
-
-def resample_from_name(name: str):
-    """Get PIL resampling mode from string name."""
-    name = (name or "").lower()
-    return {
-        "nearest": Resampling.NEAREST,
-        "bilinear": Resampling.BILINEAR,
-        "bicubic": Resampling.BICUBIC,
-        "lanczos": Resampling.LANCZOS,
-    }.get(name, Resampling.LANCZOS)

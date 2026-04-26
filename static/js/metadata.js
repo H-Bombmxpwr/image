@@ -1,10 +1,12 @@
 import { getMetadata, pushHistory, setMetadata, showToast } from './state.js';
 
-function loadMeta() {
+function loadMeta(showFeedback = true) {
   const editor = document.getElementById('metaEditor');
   if (!editor) return;
   editor.value = JSON.stringify(getMetadata(), null, 2);
-  showToast('Metadata loaded into the editor', 'success');
+  if (showFeedback) {
+    showToast('Metadata loaded into the editor', 'success');
+  }
 }
 
 function writeMeta() {
@@ -25,9 +27,6 @@ function writeMeta() {
 }
 
 export function wireMetadata() {
-  document.addEventListener('imagelab:new-image', () => {
-    loadMeta();
-  });
-  document.getElementById('metaLoad')?.addEventListener('click', loadMeta);
+  document.getElementById('metaLoad')?.addEventListener('click', () => loadMeta(true));
   document.getElementById('metaWrite')?.addEventListener('click', writeMeta);
 }

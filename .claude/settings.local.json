@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import app; print\\('app imports OK'\\); print\\([r.rule for r in app.app.url_map.iter_rules\\(\\)]\\)\")",
+      "Bash(python -c \"from src import bg_remove, seam, ops, io_utils, gif_ops, exporter; print\\('all backend modules import OK'\\); print\\(f'HAS_REMBG={bg_remove.HAS_REMBG} HAS_SEAM={seam.HAS_SEAM} backend={seam.SEAM_BACKEND}'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(curl -fsS http://127.0.0.1:5057/health)",
+      "Bash(curl -fsS -o /dev/null -w \"GET / -> %{http_code}\\\\n\" http://127.0.0.1:5057/)",
+      "Bash(curl -fsS -o /dev/null -w \"GET /static/css/style.css -> %{http_code}\\\\n\" http://127.0.0.1:5057/static/css/style.css)",
+      "Bash(curl -s -o /dev/null -w \"GET /static/css/addons.css \\(deleted\\) -> %{http_code}\\\\n\" http://127.0.0.1:5057/static/css/addons.css)",
+      "Bash(curl -s -o /dev/null -w \"GET /static/js/cropper_init.js \\(deleted\\) -> %{http_code}\\\\n\" http://127.0.0.1:5057/static/js/cropper_init.js)",
+      "Bash(curl -fsS http://127.0.0.1:5057/static/js/state.js)"
+    ]
+  }
+}

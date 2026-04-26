@@ -6,6 +6,7 @@ import {
   getCurrentBlob,
   replaceCurrentBlob,
   setAnimationInfo,
+  showLoadingToast,
   showToast,
 } from './state.js';
 
@@ -50,6 +51,23 @@ function downloadBlob(blob, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+async function runGifOp({ loadingMessage, successMessage, failMessage, request, postLabel }) {
+  const loading = loadingMessage ? showLoadingToast(loadingMessage) : null;
+  try {
+    const j = await postJSON(request.url, request.body);
+    if (postLabel) {
+      await applyGifDataUrl(j.img, postLabel);
+    }
+    loading?.dismiss();
+    if (successMessage) showToast(successMessage, 'success');
+    return j;
+  } catch (_) {
+    loading?.dismiss();
+    showToast(failMessage, 'error');
+    return null;
+  }
+}
+
 export function wireGif() {
   const speed = document.getElementById('gifSpeed');
   const speedVal = document.getElementById('gifSpeedVal');
@@ -68,100 +86,107 @@ export function wireGif() {
       showToast('Enter at least one target dimension.', 'error');
       return;
     }
-
-    try {
-      showToast('Resizing GIF...', 'info');
-      const j = await postJSON('/api/gif/resize', {
-        image: await blobToDataURL(getCurrentBlob()),
-        width,
-        height,
-        keep_aspect: keepAspect,
-      });
-      await applyGifDataUrl(j.img, `GIF resize to ${width || 'auto'}x${height || 'auto'}`);
-      showToast('GIF resized', 'success');
-    } catch (_) {
-      showToast('GIF resize failed', 'error');
-    }
+    await runGifOp({
+      loadingMessage: 'Resizing GIF...',
+      successMessage: 'GIF resized',
+      failMessage: 'GIF resize failed',
+      request: {
+        url: '/api/gif/resize',
+        body: {
+          image: await blobToDataURL(getCurrentBlob()),
+          width,
+          height,
+          keep_aspect: keepAspect,
+        },
+      },
+      postLabel: `GIF resize to ${width || 'auto'}x${height || 'auto'}`,
+    });
   });
 
   document.getElementById('btnGifTrim')?.addEventListener('click', async () => {
     if (!requireGif()) return;
     const start = parseInt(document.getElementById('gifTrimStart')?.value || '0', 10);
     const end = parseInt(document.getElementById('gifTrimEnd')?.value || '-1', 10);
-    try {
-      showToast('Trimming GIF...', 'info');
-      const j = await postJSON('/api/gif/trim', {
-        image: await blobToDataURL(getCurrentBlob()),
-        start_frame: start,
-        end_frame: end,
-      });
-      await applyGifDataUrl(j.img, `GIF trim ${start} to ${end}`);
-      showToast('GIF trimmed', 'success');
-    } catch (_) {
-      showToast('GIF trim failed', 'error');
-    }
+    await runGifOp({
+      loadingMessage: 'Trimming GIF...',
+      successMessage: 'GIF trimmed',
+      failMessage: 'GIF trim failed',
+      request: {
+        url: '/api/gif/trim',
+        body: {
+          image: await blobToDataURL(getCurrentBlob()),
+          start_frame: start,
+          end_frame: end,
+        },
+      },
+      postLabel: `GIF trim ${start} to ${end}`,
+    });
   });
 
   document.getElementById('btnGifSpeed')?.addEventListener('click', async () => {
     if (!requireGif()) return;
     const factor = parseInt(document.getElementById('gifSpeed')?.value || '100', 10) / 100;
-    try {
-      showToast('Changing GIF speed...', 'info');
-      const j = await postJSON('/api/gif/speed', {
-        image: await blobToDataURL(getCurrentBlob()),
-        speed_factor: factor,
-      });
-      await applyGifDataUrl(j.img, `GIF speed ${factor.toFixed(1)}x`);
-      showToast('GIF speed updated', 'success');
-    } catch (_) {
-      showToast('GIF speed change failed', 'error');
-    }
+    await runGifOp({
+      loadingMessage: 'Changing GIF speed...',
+      successMessage: 'GIF speed updated',
+      failMessage: 'GIF speed change failed',
+      request: {
+        url: '/api/gif/speed',
+        body: {
+          image: await blobToDataURL(getCurrentBlob()),
+          speed_factor: factor,
+        },
+      },
+      postLabel: `GIF speed ${factor.toFixed(1)}x`,
+    });
   });
 
   document.getElementById('btnGifReverse')?.addEventListener('click', async () => {
     if (!requireGif()) return;
-    try {
-      showToast('Reversing GIF...', 'info');
-      const j = await postJSON('/api/gif/reverse', {
-        image: await blobToDataURL(getCurrentBlob()),
-      });
-      await applyGifDataUrl(j.img, 'GIF reversed');
-      showToast('GIF reversed', 'success');
-    } catch (_) {
-      showToast('GIF reverse failed', 'error');
-    }
+    await runGifOp({
+      loadingMessage: 'Reversing GIF...',
+      successMessage: 'GIF reversed',
+      failMessage: 'GIF reverse failed',
+      request: {
+        url: '/api/gif/reverse',
+        body: { image: await blobToDataURL(getCurrentBlob()) },
+      },
+      postLabel: 'GIF reversed',
+    });
   });
 
   document.getElementById('btnGifPingPong')?.addEventListener('click', async () => {
     if (!requireGif()) return;
-    try {
-      showToast('Building ping-pong GIF...', 'info');
-      const j = await postJSON('/api/gif/pingpong', {
-        image: await blobToDataURL(getCurrentBlob()),
-      });
-      await applyGifDataUrl(j.img, 'GIF ping-pong');
-      showToast('Ping-pong GIF created', 'success');
-    } catch (_) {
-      showToast('GIF ping-pong failed', 'error');
-    }
+    await runGifOp({
+      loadingMessage: 'Building ping-pong GIF...',
+      successMessage: 'Ping-pong GIF created',
+      failMessage: 'GIF ping-pong failed',
+      request: {
+        url: '/api/gif/pingpong',
+        body: { image: await blobToDataURL(getCurrentBlob()) },
+      },
+      postLabel: 'GIF ping-pong',
+    });
   });
 
   document.getElementById('btnGifOptimize')?.addEventListener('click', async () => {
     if (!requireGif()) return;
     const colors = parseInt(document.getElementById('gifOptimizeColors')?.value || '128', 10);
     const frameStep = parseInt(document.getElementById('gifOptimizeStep')?.value || '1', 10);
-    try {
-      showToast('Optimizing GIF...', 'info');
-      const j = await postJSON('/api/gif/optimize', {
-        image: await blobToDataURL(getCurrentBlob()),
-        colors,
-        frame_step: frameStep,
-      });
-      await applyGifDataUrl(j.img, `GIF optimize ${colors} colors`);
-      showToast('GIF optimized', 'success');
-    } catch (_) {
-      showToast('GIF optimization failed', 'error');
-    }
+    await runGifOp({
+      loadingMessage: 'Optimizing GIF...',
+      successMessage: 'GIF optimized',
+      failMessage: 'GIF optimization failed',
+      request: {
+        url: '/api/gif/optimize',
+        body: {
+          image: await blobToDataURL(getCurrentBlob()),
+          colors,
+          frame_step: frameStep,
+        },
+      },
+      postLabel: `GIF optimize ${colors} colors`,
+    });
   });
 
   document.getElementById('btnGifPoster')?.addEventListener('click', async () => {
@@ -182,15 +207,17 @@ export function wireGif() {
 
   document.getElementById('btnGifFramesZip')?.addEventListener('click', async () => {
     if (!requireGif()) return;
+    const loading = showLoadingToast('Packing GIF frames...');
     try {
-      showToast('Packing GIF frames...', 'info');
       const j = await postJSON('/api/gif/frames_zip', {
         image: await blobToDataURL(getCurrentBlob()),
       });
       const blob = await dataURLToBlob(j.zip);
       downloadBlob(blob, 'gif-frames.zip');
+      loading.dismiss();
       showToast('Frame ZIP downloaded', 'success');
     } catch (_) {
+      loading.dismiss();
       showToast('GIF frame export failed', 'error');
     }
   });

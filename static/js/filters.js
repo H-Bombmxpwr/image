@@ -197,6 +197,11 @@ export function wireFilters() {
     resetControls();
   });
 
+  document.addEventListener('imagelab:state-changed', () => {
+    clearTimeout(previewTimer);
+    resetControls();
+  });
+
   document.addEventListener('imagelab:before-panel-change', () => {
     commitPreviewIfNeeded();
   });

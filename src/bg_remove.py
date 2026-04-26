@@ -34,10 +34,8 @@ def remove_bg_ai(img: Image.Image) -> Image.Image:
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
-    buf.seek(0)
 
-    remove = _get_remove()
-    output = remove(
+    output = _get_remove()(
         buf.getvalue(),
         session=_get_session(),
         alpha_matting=os.environ.get("REMBG_ALPHA_MATTING", "1") != "0",

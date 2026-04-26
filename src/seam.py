@@ -33,10 +33,8 @@ def seam_carve(img: Image.Image, target_w: int, target_h: int, order: str, energ
 
         if target_w < img.width:
             num = img.width - target_w
-            carved = transform.seam_carve(arr, energy, 'vertical', num)
+            carved = transform.seam_carve(arr, energy, "vertical", num)
             return Image.fromarray(img_as_ubyte(carved))
-        else:
-            return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-    
-    # Fallback to regular resize
+        return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
     return img.resize((target_w, target_h), Image.Resampling.LANCZOS)

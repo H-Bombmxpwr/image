@@ -5,19 +5,12 @@ import os
 from flask import Flask, render_template, request, jsonify, send_file
 from PIL import Image
 
-from src.io_utils import (
-    b64_to_image, image_to_dataurl, dataurl_bytes, fmt_size,
-    stats_for, exif_to_dict, write_exif
-)
-from src.ops import (
-    rotate_img, flip_img, resize_img, crop_img,
-    apply_filters, apply_adjust, hist_equalize, remove_background, convert_img,
-    auto_enhance, vignette_img, add_border, add_watermark
-)
+from src.io_utils import b64_to_image, exif_to_dict, fmt_size, image_to_dataurl, stats_for
+from src.ops import convert_img, remove_background
 from src.gif_ops import (
     HAS_GIF, resize_gif, trim_gif, extract_gif_frames,
     change_gif_speed, reverse_gif, gif_to_frames_zip,
-    gif_info, optimize_gif, pingpong_gif, poster_frame
+    gif_info, optimize_gif, pingpong_gif, poster_frame,
 )
 from src.seam import HAS_SEAM, SEAM_BACKEND, seam_carve
 from src.bg_remove import HAS_REMBG, remove_bg_ai
@@ -61,17 +54,6 @@ def health_check():
     return "ok", 200
 
 
-@app.post("/api/inspect")
-def api_inspect():
-    data_url = request.json["image"]
-    img = b64_to_image(data_url)
-    size_bytes = dataurl_bytes(data_url)
-    meta = stats_for(img)
-    meta["file_size"] = size_bytes
-    meta["file_size_str"] = fmt_size(size_bytes)
-    return jsonify({"meta": meta, "exif": exif_to_dict(img)})
-
-
 @app.post("/api/inspect_upload")
 def api_inspect_upload():
     img, raw = _open_uploaded_image()
@@ -86,77 +68,6 @@ def api_convert():
     d = request.json
     img = b64_to_image(d["image"])
     return jsonify({"img": convert_img(img, d.get("to", "png"), int(d.get("quality", 92)))})
-
-
-@app.post("/api/rotate")
-def api_rotate():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = rotate_img(img, float(d.get("degrees", 0)), bool(d.get("expand", True)))
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/flip")
-def api_flip():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = flip_img(img, d.get("axis", "h"))
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/resize")
-def api_resize():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = resize_img(
-        img,
-        int(d.get("width") or img.width),
-        int(d.get("height") or img.height),
-        bool(d.get("keep_aspect", True)),
-        d.get("method"),
-    )
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/crop")
-def api_crop():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = crop_img(
-        img,
-        float(d["x"]), float(d["y"]), float(d["width"]), float(d["height"]),
-        float(d.get("rotate", 0))
-    )
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/filters")
-def api_filters():
-    d = request.json
-    img = b64_to_image(d["image"])
-    return jsonify({"img": image_to_dataurl(apply_filters(img, d))})
-
-
-@app.post("/api/adjust")
-def api_adjust():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = apply_adjust(
-        img,
-        float(d.get("brightness", 1.0)),
-        float(d.get("contrast", 1.0)),
-        float(d.get("saturation", 1.0)),
-        float(d.get("gamma", 1.0)),
-        float(d.get("hue", 0.0)),
-        float(d.get("temperature", 0.0)),
-    )
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/histeq")
-def api_hist_eq():
-    img = b64_to_image(request.json["image"])
-    return jsonify({"img": image_to_dataurl(hist_equalize(img))})
 
 
 @app.post("/api/background_remove")
@@ -190,68 +101,6 @@ def api_seam():
         d.get("energy_mode", "backward"),
     )
     return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/auto_enhance")
-def api_auto_enhance():
-    img = b64_to_image(request.json["image"])
-    return jsonify({"img": image_to_dataurl(auto_enhance(img))})
-
-
-@app.post("/api/vignette")
-def api_vignette():
-    d = request.json
-    img = b64_to_image(d["image"])
-    return jsonify({"img": image_to_dataurl(vignette_img(img, float(d.get("strength", 0.5))))})
-
-
-@app.post("/api/border")
-def api_border():
-    d = request.json
-    img = b64_to_image(d["image"])
-    return jsonify({"img": image_to_dataurl(add_border(img, int(d.get("size", 10)), d.get("color", "#000000")))})
-
-
-@app.post("/api/watermark")
-def api_watermark():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = add_watermark(
-        img,
-        d.get("text", ""),
-        d.get("position", "bottom-right"),
-        float(d.get("opacity", 0.5)),
-        d.get("color", "#ffffff"),
-    )
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/write_metadata")
-def api_write_metadata():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = write_exif(img, d.get("metadata", {}))
-    return jsonify({"img": image_to_dataurl(out)})
-
-
-@app.post("/api/metadata_read")
-def api_metadata_read():
-    img = b64_to_image(request.json["image"])
-    return jsonify({"meta": exif_to_dict(img)})
-
-
-@app.post("/api/metadata_write")
-def api_metadata_write():
-    d = request.json
-    img = b64_to_image(d["image"])
-    out = write_exif(img, d.get("updates", {}))
-    return jsonify({"img": image_to_dataurl(out), "meta": exif_to_dict(out)})
-
-
-@app.post("/api/normalize")
-def api_normalize():
-    img = b64_to_image(request.json["image"])
-    return jsonify({"img": image_to_dataurl(img, "PNG")})
 
 
 @app.post("/api/gif/resize")

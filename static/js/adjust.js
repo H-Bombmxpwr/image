@@ -171,6 +171,11 @@ export function wireAdjust() {
     resetSliders();
   });
 
+  document.addEventListener('imagelab:state-changed', () => {
+    clearTimeout(previewTimer);
+    resetSliders();
+  });
+
   document.addEventListener('imagelab:before-panel-change', () => {
     commitPreviewIfNeeded();
   });

@@ -27,7 +27,7 @@ export function wireCropper() {
     img.src = CURRENT;
     dialog?.showModal();
 
-    setTimeout(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       try {
         cropper?.destroy?.();
       } catch (_) {
@@ -41,7 +41,7 @@ export function wireCropper() {
         zoomable: true,
         responsive: true,
       });
-    }, 40);
+    }));
   });
 
   document.getElementById('cropCancel')?.addEventListener('click', closeCropper);

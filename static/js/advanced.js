@@ -12,6 +12,7 @@ import {
   getCurrentBlob,
   replaceCurrentBlob,
   setAnimationInfo,
+  showLoadingToast,
   showToast,
 } from './state.js';
 
@@ -44,31 +45,35 @@ export function wireAdvanced() {
   document.getElementById('btnBgRemove')?.addEventListener('click', async () => {
     if (!requireStaticImage()) return;
     const tolerance = parseInt(document.getElementById('bgTol')?.value || '18', 10);
+    const loading = showLoadingToast('Removing background...');
     try {
-      showToast('Removing background...', 'info');
       const j = await postJSON('/api/background_remove', {
         image: await blobToDataURL(getCurrentBlob()),
         tolerance,
       });
       const blob = await dataURLToBlob(j.img);
       await replaceCurrentBlob(blob, { recordHistory: true, label: `Background remove (${tolerance})` });
+      loading.dismiss();
       showToast('Background removed', 'success');
     } catch (_) {
+      loading.dismiss();
       showToast('Background removal failed', 'error');
     }
   });
 
   document.getElementById('btnBgRemoveAI')?.addEventListener('click', async () => {
     if (!requireStaticImage()) return;
+    const loading = showLoadingToast('Running local AI cutout...');
     try {
-      showToast('Running local AI cutout...', 'info');
       const j = await postJSON('/api/background_remove_ai', {
         image: await blobToDataURL(getCurrentBlob()),
       });
       const blob = await dataURLToBlob(j.img);
       await replaceCurrentBlob(blob, { recordHistory: true, label: 'AI background removal' });
+      loading.dismiss();
       showToast('Background removed', 'success');
     } catch (_) {
+      loading.dismiss();
       showToast('AI background removal failed', 'error');
     }
   });

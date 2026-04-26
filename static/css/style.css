@@ -44,7 +44,7 @@ body {
 }
 
 body.has-topbar {
-  padding-top: 112px;
+  padding-top: clamp(112px, 12vw, 150px);
 }
 
 a {
@@ -172,7 +172,22 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
+}
+
+.btn-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-group + .btn-group {
+  margin-left: 2px;
 }
 
 .btn,
@@ -466,10 +481,14 @@ input[type='color'] {
   padding: 18px;
 }
 
-.gif-play-btn.is-active,
 #btnCompare.is-active {
   background: rgba(255, 107, 53, 0.18);
   border-color: rgba(255, 107, 53, 0.48);
+}
+
+#btnCompare:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.4);
 }
 
 .drop-hint {
@@ -568,12 +587,16 @@ input[type='color'] {
   gap: 10px;
 }
 
-.metadata-toggle {
+.chevron {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
   color: var(--text-muted);
   transition: transform 150ms ease;
 }
 
-.metadata-panel.open .metadata-toggle {
+.metadata-panel.open .metadata-toggle,
+.accordion.open .accordion-icon {
   transform: rotate(180deg);
 }
 
@@ -799,10 +822,6 @@ input[type='color'] {
   display: block;
 }
 
-.accordion.open .accordion-icon {
-  transform: rotate(180deg);
-}
-
 dialog {
   width: min(960px, 92vw);
   padding: 0;
@@ -905,12 +924,6 @@ dialog::backdrop {
   font-size: 0.75rem;
 }
 
-.separator {
-  width: 1px;
-  align-self: stretch;
-  background: rgba(255, 255, 255, 0.08);
-}
-
 .toast-container {
   position: fixed;
   right: 18px;
@@ -939,6 +952,25 @@ dialog::backdrop {
   border-color: rgba(255, 107, 107, 0.42);
 }
 
+.toast.is-loading {
+  border-color: rgba(34, 199, 200, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast.is-loading::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--accent-2);
+  animation: spin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
 .spinner {
   display: inline-block;
   width: 18px;
@@ -957,6 +989,11 @@ dialog::backdrop {
   to {
     transform: rotate(360deg);
   }
+}
+
+html {
+  scrollbar-color: rgba(255, 255, 255, 0.18) rgba(255, 255, 255, 0.02);
+  scrollbar-width: thin;
 }
 
 ::-webkit-scrollbar {
@@ -999,7 +1036,7 @@ dialog::backdrop {
 
 @media (max-width: 760px) {
   body.has-topbar {
-    padding-top: 160px;
+    padding-top: 200px;
   }
 
   .topbar,
@@ -1022,9 +1059,15 @@ dialog::backdrop {
     flex-wrap: wrap;
   }
 
-  .num-input,
-  .export-select {
-    width: 100%;
+  .actions .num-input,
+  .actions .export-select {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 84px;
+  }
+
+  .btn-group {
+    flex-wrap: wrap;
   }
 
   .tabs {

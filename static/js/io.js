@@ -25,7 +25,7 @@ export function wireOpeners() {
       let inspect = {
         meta: {
           is_animated: isGif,
-          frame_count: isGif ? 1 : 1,
+          frame_count: 1,
         },
         exif: {},
       };
@@ -44,7 +44,7 @@ export function wireOpeners() {
         originalMetadata: inspect.exif || {},
         analysis: inspect.meta || {
           is_animated: isGif,
-          frame_count: isGif ? 1 : 1,
+          frame_count: 1,
         },
       });
 
@@ -72,7 +72,13 @@ export function wireOpeners() {
   });
 
   dropZone?.addEventListener('click', (event) => {
-    if (event.target === dropZone || event.target === dropHint || dropHint?.contains(event.target)) {
+    const hintVisible = dropHint && dropHint.style.display !== 'none';
+    if (
+      event.target === dropZone ||
+      event.target === dropHint ||
+      dropHint?.contains(event.target) ||
+      (hintVisible && event.target.id === 'canvas')
+    ) {
       fileInput?.click();
     }
   });

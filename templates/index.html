@@ -32,29 +32,36 @@
     </div>
 
     <div class="actions">
-      <a href="{{ url_for('help_page') }}" class="btn btn-ghost">How it works</a>
-      <a href="{{ url_for('about_page') }}" class="btn btn-ghost">About</a>
-      <label class="btn file-btn">
-        <input id="fileInput" type="file" accept="image/*,.bmp,.tiff,.tif,.gif,.webp,.heic,.heif,.avif,.bin">
-        <span>Open</span>
-      </label>
-      <button id="btnPaste" class="btn btn-ghost">Paste</button>
-      <button id="btnUndo" class="btn btn-ghost" disabled>Undo</button>
-      <button id="btnRedo" class="btn btn-ghost" disabled>Redo</button>
-      <button id="btnCompare" class="btn btn-ghost" disabled>Hold to Compare</button>
-      <button id="btnReset" class="btn btn-ghost">Reset</button>
-      <div class="separator"></div>
-      <select id="exportFormat" class="select input-sm export-select">
-        <option value="png">PNG</option>
-        <option value="jpeg">JPEG</option>
-        <option value="webp">WEBP</option>
-        <option value="gif">GIF</option>
-        <option value="bmp">BMP</option>
-        <option value="tiff">TIFF</option>
-      </select>
-      <input id="exportQuality" class="input input-sm num-input" type="number" min="1" max="100" value="92" title="Quality">
-      <button id="btnCopy" class="btn btn-ghost">Copy</button>
-      <button id="btnDownload" class="btn btn-primary">Download</button>
+      <div class="btn-group">
+        <a href="{{ url_for('help_page') }}" class="btn btn-ghost">How it works</a>
+        <a href="{{ url_for('about_page') }}" class="btn btn-ghost">About</a>
+      </div>
+      <div class="btn-group">
+        <label class="btn file-btn">
+          <input id="fileInput" type="file" accept="image/*,.bmp,.tiff,.tif,.gif,.webp,.heic,.heif,.avif,.bin">
+          <span>Open</span>
+        </label>
+        <button id="btnPaste" class="btn btn-ghost">Paste</button>
+      </div>
+      <div class="btn-group">
+        <button id="btnUndo" class="btn btn-ghost" disabled title="Undo (Ctrl/Cmd+Z)">Undo</button>
+        <button id="btnRedo" class="btn btn-ghost" disabled title="Redo (Ctrl/Cmd+Y)">Redo</button>
+        <button id="btnCompare" class="btn btn-ghost" disabled title="Hold to view the original image">Compare original</button>
+        <button id="btnReset" class="btn btn-ghost">Reset</button>
+      </div>
+      <div class="btn-group">
+        <select id="exportFormat" class="select input-sm export-select" title="Export format">
+          <option value="png">PNG</option>
+          <option value="jpeg">JPEG</option>
+          <option value="webp">WEBP</option>
+          <option value="gif">GIF</option>
+          <option value="bmp">BMP</option>
+          <option value="tiff">TIFF</option>
+        </select>
+        <input id="exportQuality" class="input input-sm num-input" type="number" min="1" max="100" value="92" title="Quality">
+        <button id="btnCopy" class="btn btn-ghost">Copy</button>
+        <button id="btnDownload" class="btn btn-primary">Download</button>
+      </div>
     </div>
   </header>
 
@@ -78,7 +85,7 @@
               <path d="m21 15-5-5L5 21"></path>
             </svg>
             <div class="drop-hint-text">Drop an image here or click to open</div>
-            <div class="drop-hint-sub">PNG, JPG, WEBP, GIF, BMP, TIFF, HEIC, AVIF, BIN image blobs, and clipboard paste</div>
+            <div class="drop-hint-sub">PNG, JPG, WEBP, GIF, BMP, TIFF, HEIC, AVIF, BIN image blobs - or press Ctrl/Cmd+V to paste</div>
           </div>
         </div>
       </div>
@@ -108,7 +115,9 @@
           </div>
           <div class="metadata-header-side">
             <span id="metadataStatus" class="metadata-badge">Empty</span>
-            <span class="metadata-toggle">v</span>
+            <svg class="metadata-toggle chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
           </div>
         </div>
         <div class="metadata-content">
@@ -127,7 +136,7 @@
         <div class="panel-head">
           <div>
             <div class="section-kicker">Timeline</div>
-            <div class="panel-title">Undo, redo, and jump back</div>
+            <div class="panel-title">History</div>
           </div>
         </div>
         <div id="historyList" class="history-list"></div>
@@ -156,7 +165,11 @@
               <button id="btnRename" class="btn">Rename</button>
             </div>
             <div class="accordion" id="rotateAccordion">
-              <div class="accordion-header">Custom rotation <span class="accordion-icon">v</span></div>
+              <div class="accordion-header">Custom rotation
+                <svg class="accordion-icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
               <div class="accordion-content">
                 <div class="tool-row">
                   <input id="rotateDeg" type="number" value="0" step="1" class="input num-input" placeholder="Degrees">
@@ -316,21 +329,36 @@
             <div class="group-title">Background removal</div>
             {% if has_rembg %}
             <div class="advanced-note">
-              <label class="tool-label">Best quality AI cutout</label>
+              <label class="tool-label">AI cutout - recommended</label>
               <button id="btnBgRemoveAI" class="btn btn-primary full-width tool-action">Remove background</button>
-              <p class="text-xs muted">Closest to a remove.bg-style cutout. Runs with a local rembg model on your server.</p>
+              <p class="text-xs muted">Closest to a remove.bg-style cutout. Runs a local rembg model on your server.</p>
             </div>
-            {% endif %}
+            <div class="accordion" id="bgManualAccordion">
+              <div class="accordion-header">Manual tolerance fallback
+                <svg class="accordion-icon chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div class="accordion-content">
+                <label class="tool-label">Border-color tolerance</label>
+                <div class="tool-row">
+                  <input id="bgTol" type="range" min="0" max="100" value="18" class="tool-flex">
+                  <span id="bgTolVal" class="slider-value">18</span>
+                </div>
+                <button id="btnBgRemove" class="btn full-width tool-action">Quick remove</button>
+                <p class="text-xs muted">Use when the AI cutout misjudges complex backgrounds.</p>
+              </div>
+            </div>
+            {% else %}
             <div>
-              <label class="tool-label">{% if has_rembg %}Quick matte cleanup{% else %}Smart tolerance{% endif %}</label>
+              <label class="tool-label">Smart tolerance</label>
               <div class="tool-row">
                 <input id="bgTol" type="range" min="0" max="100" value="18" class="tool-flex">
                 <span id="bgTolVal" class="slider-value">18</span>
               </div>
-              <button id="btnBgRemove" class="btn full-width tool-action">{% if has_rembg %}Quick remove{% else %}Remove background{% endif %}</button>
+              <button id="btnBgRemove" class="btn full-width tool-action">Remove background</button>
+              <p class="text-xs muted advanced-note">Local AI cutout is not installed. The smart local cutout still works without it.</p>
             </div>
-            {% if not has_rembg %}
-            <p class="text-xs muted advanced-note">Local AI cutout is not installed. The smart local cutout still works without it.</p>
             {% endif %}
           </div>
 
