@@ -7,6 +7,7 @@ import {
   loadImageFromSource,
   sanitizeFileName,
 } from './blob_utils.js';
+import { setActivePanel } from './tabs.js';
 
 export let CURRENT = null;
 export let ORIGINAL = null;
@@ -214,6 +215,20 @@ function updateCompareButtonState() {
   }
 }
 
+function updateGifTabVisibility() {
+  const gifTab = document.querySelector('.tab[data-panel="gif"]');
+  const gifPanel = document.getElementById('panel-gif');
+  if (!gifTab || !gifPanel) return;
+
+  const shouldShow = Boolean(IS_GIF && CURRENT_BLOB);
+  gifTab.classList.toggle('hidden', !shouldShow);
+  gifPanel.classList.toggle('hidden', !shouldShow);
+
+  if (!shouldShow && gifTab.classList.contains('active')) {
+    setActivePanel('basic');
+  }
+}
+
 async function setCurrentBlobInternal(blob, options = {}) {
   CURRENT_BLOB = blob || null;
   CURRENT_ANALYSIS = deepClone(options.analysis || CURRENT_ANALYSIS || { is_animated: false, frame_count: 1 });
@@ -226,6 +241,7 @@ async function setCurrentBlobInternal(blob, options = {}) {
     renderEmptyStage();
     updateCompareButtonState();
     updateUndoRedoButtons();
+    updateGifTabVisibility();
     return;
   }
 
@@ -236,6 +252,7 @@ async function setCurrentBlobInternal(blob, options = {}) {
   await refreshInspect();
   updateCompareButtonState();
   updateUndoRedoButtons();
+  updateGifTabVisibility();
 }
 
 function renderEmptyStage() {
@@ -254,6 +271,7 @@ function renderEmptyStage() {
   setInfoField('infoAvg', '-');
   updateExif({});
   updateGifInfoLabel();
+  updateGifTabVisibility();
 }
 
 export function showToast(message, type = 'info') {
@@ -386,11 +404,13 @@ export function setAnimationInfo(info = {}) {
     ...deepClone(info),
   };
   updateGifInfoLabel();
+  updateGifTabVisibility();
 }
 
 export function setIsGif(value) {
   IS_GIF = Boolean(value);
   updateGifInfoLabel();
+  updateGifTabVisibility();
 }
 
 export async function openEditorBlob(blob, options = {}) {
@@ -548,6 +568,7 @@ export function renderHistory() {
 
   updateUndoRedoButtons();
   updateCompareButtonState();
+  updateGifTabVisibility();
 }
 
 export function setCanvasFromImage(img) {
@@ -791,6 +812,7 @@ export function bootPreview() {
   renderHistory();
   syncMetadataEditor();
   deleteSession();
+  updateGifTabVisibility();
 }
 
 export function wireStateUI() {

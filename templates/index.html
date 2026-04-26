@@ -12,12 +12,12 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
 </head>
-<body>
+<body class="has-topbar">
   <header class="topbar">
     <div class="brand-block">
       <div class="brand-kicker">Browser-first image editing</div>
       <div class="brand-name">Image Lab</div>
-      <p class="brand-summary">Fast local edits, cleaner exports, lighter hosting, and better GIF plus metadata support.</p>
+      <p class="brand-summary">Fast browser edits, cleaner exports, plus server-backed AI cutouts and seam carving when you need them.</p>
     </div>
 
     <div class="workspace-block">
@@ -26,12 +26,14 @@
         <input id="fileNameInput" class="workspace-input" type="text" value="untitled" spellcheck="false" autocomplete="off">
       </label>
       <div class="workspace-tags">
-        <span class="tag">Low-server mode</span>
+        <span class="tag">Hybrid local + server</span>
         <span class="tag tag-accent">Metadata aware</span>
       </div>
     </div>
 
     <div class="actions">
+      <a href="{{ url_for('help_page') }}" class="btn btn-ghost">How it works</a>
+      <a href="{{ url_for('about_page') }}" class="btn btn-ghost">About</a>
       <label class="btn file-btn">
         <input id="fileInput" type="file" accept="image/*,.bmp,.tiff,.tif,.gif,.webp,.heic,.heif,.avif,.bin">
         <span>Open</span>
@@ -312,21 +314,22 @@
 
           <div class="tool-group">
             <div class="group-title">Background removal</div>
+            {% if has_rembg %}
+            <div class="advanced-note">
+              <label class="tool-label">Best quality AI cutout</label>
+              <button id="btnBgRemoveAI" class="btn btn-primary full-width tool-action">Remove background</button>
+              <p class="text-xs muted">Closest to a remove.bg-style cutout. Runs with a local rembg model on your server.</p>
+            </div>
+            {% endif %}
             <div>
-              <label class="tool-label">Smart tolerance</label>
+              <label class="tool-label">{% if has_rembg %}Quick matte cleanup{% else %}Smart tolerance{% endif %}</label>
               <div class="tool-row">
                 <input id="bgTol" type="range" min="0" max="100" value="18" class="tool-flex">
                 <span id="bgTolVal" class="slider-value">18</span>
               </div>
-              <button id="btnBgRemove" class="btn full-width tool-action">Remove background</button>
+              <button id="btnBgRemove" class="btn full-width tool-action">{% if has_rembg %}Quick remove{% else %}Remove background{% endif %}</button>
             </div>
-            {% if has_rembg %}
-            <div class="advanced-note">
-              <label class="tool-label">Local AI cutout</label>
-              <button id="btnBgRemoveAI" class="btn btn-primary full-width tool-action">Run local AI cutout</button>
-              <p class="text-xs muted">Uses a local model on your server, not the remove.bg API.</p>
-            </div>
-            {% else %}
+            {% if not has_rembg %}
             <p class="text-xs muted advanced-note">Local AI cutout is not installed. The smart local cutout still works without it.</p>
             {% endif %}
           </div>

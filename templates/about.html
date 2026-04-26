@@ -3,142 +3,102 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Image Lab — About</title>
+  <title>Image Lab - About</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='images/icon.png') }}" type="image/png">
   <style>
-    .about-container {
-      max-width: 700px;
-      margin: 60px auto;
-      padding: 24px;
-    }
-    .about-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 40px;
-      text-align: center;
-    }
-    .about-logo {
-      width: 80px;
-      height: 80px;
-      margin-bottom: 24px;
-      border-radius: 16px;
-    }
-    .about-title {
-      font-size: 2rem;
-      margin-bottom: 8px;
-      background: linear-gradient(135deg, var(--accent) 0%, #a78bfa 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .about-version {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-      margin-bottom: 24px;
-    }
-    .about-description {
-      color: var(--text-secondary);
-      line-height: 1.8;
-      margin-bottom: 32px;
-    }
-    .about-features {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
-      margin-bottom: 32px;
-      text-align: left;
-    }
-    .about-feature {
-      background: var(--bg-tertiary);
-      padding: 16px;
-      border-radius: 12px;
-    }
-    .about-feature h4 {
-      font-size: 0.9375rem;
-      margin-bottom: 6px;
-      color: var(--text-primary);
-    }
-    .about-feature p {
-      font-size: 0.8125rem;
-      color: var(--text-muted);
-      margin: 0;
-    }
-    .about-links {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .about-divider {
-      height: 1px;
-      background: var(--border);
-      margin: 24px 0;
-    }
-    .about-credits {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-    }
-    .about-credits a {
-      color: var(--accent);
+    .about-shell { max-width: 1080px; margin: 0 auto; padding: 22px; }
+    .about-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr); gap: 18px; }
+    .about-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+    .about-logo { width: 76px; height: 76px; border-radius: 18px; margin-bottom: 18px; }
+    .about-title { font-size: clamp(2rem, 3vw, 3rem); line-height: 1; margin: 8px 0 12px; }
+    .about-copy { color: var(--text-soft); line-height: 1.75; max-width: 42rem; }
+    .about-features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .about-feature { padding: 16px; border-radius: 16px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06); }
+    .about-feature h3 { margin: 0 0 8px; font-size: 0.98rem; }
+    .about-feature p, .about-meta p, .about-list li { color: var(--text-soft); line-height: 1.7; }
+    .about-meta { display: grid; gap: 12px; }
+    .about-list { margin: 10px 0 0; padding-left: 18px; }
+    .about-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    @media (max-width: 900px) {
+      .about-grid, .about-features { grid-template-columns: 1fr; }
     }
   </style>
 </head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <a href="{{ url_for('index') }}" class="brand-name" style="text-decoration:none">← Image Lab</a>
+<body class="has-topbar">
+  <header class="topbar topbar-simple">
+    <div class="brand-block">
+      <div class="brand-kicker">About</div>
+      <div class="brand-name"><a href="{{ url_for('index') }}" style="text-decoration:none;color:inherit">Image Lab</a></div>
     </div>
     <div class="actions">
-      <a href="{{ url_for('help_page') }}" class="btn btn-ghost">Help</a>
+      <a href="{{ url_for('help_page') }}" class="btn btn-ghost">How it works</a>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Back to editor</a>
     </div>
   </header>
 
-  <main class="about-container">
-    <div class="about-card">
-      <img src="{{ url_for('static', filename='images/icon.png') }}" alt="Image Lab" class="about-logo">
-      <h1 class="about-title">Image Lab</h1>
-      <p class="about-version">Version 2.0 • Fast Online Image Editor</p>
-      
-      <p class="about-description">
-        A powerful, browser-based image editor built with Python and modern web technologies.
-        Crop, resize, apply filters, remove backgrounds, and more — all without uploading to external servers.
-      </p>
+  <main class="about-shell">
+    <section class="about-grid">
+      <article class="about-card">
+        <img src="{{ url_for('static', filename='images/icon.png') }}" alt="Image Lab icon" class="about-logo">
+        <div class="section-kicker">What this is</div>
+        <h1 class="about-title">A serious browser editor without the usual cloud-only drag.</h1>
+        <p class="about-copy">
+          Image Lab is built to keep common editing work fast in the browser while still offering heavyweight server tools like seam carving and AI background removal. The goal is simple: make the app feel powerful without making every click wait on the network.
+        </p>
 
-      <div class="about-features">
-        <div class="about-feature">
-          <h4>🎨 Rich Editing</h4>
-          <p>Crop, rotate, resize, flip, and transform images with precision.</p>
+        <div class="about-features">
+          <div class="about-feature">
+            <h3>Local-first speed</h3>
+            <p>Crop, resize, rotate, filters, adjustments, and many exports now stay in the browser.</p>
+          </div>
+          <div class="about-feature">
+            <h3>Heavy tools when needed</h3>
+            <p>Seam carving and rembg-powered background removal stay server-backed for better results.</p>
+          </div>
+          <div class="about-feature">
+            <h3>Metadata-aware workflow</h3>
+            <p>Edit metadata in the UI and embed it into the file when you export.</p>
+          </div>
+          <div class="about-feature">
+            <h3>Real GIF support</h3>
+            <p>Resize, trim, reverse, ping-pong, optimize, and export individual poster frames.</p>
+          </div>
         </div>
-        <div class="about-feature">
-          <h4>✨ Advanced Filters</h4>
-          <p>Apply professional filters, color adjustments, and effects.</p>
-        </div>
-        <div class="about-feature">
-          <h4>🖼️ GIF Support</h4>
-          <p>Resize, trim, speed up, slow down, and reverse animated GIFs.</p>
-        </div>
-        <div class="about-feature">
-          <h4>🔒 Privacy First</h4>
-          <p>Images processed locally. Nothing stored on servers.</p>
-        </div>
-      </div>
 
-      <div class="about-links">
-        <a href="https://hxr.life" target="_blank" rel="noopener" class="btn btn-primary">hxr.life</a>
-        <a href="https://github.com/H-Bombmxpwr/image" target="_blank" rel="noopener" class="btn btn-ghost">GitHub</a>
-      </div>
+        <div class="about-links">
+          <a href="https://hxr.life" target="_blank" rel="noopener" class="btn btn-primary">hxr.life</a>
+          <a href="https://github.com/H-Bombmxpwr/image" target="_blank" rel="noopener" class="btn btn-ghost">GitHub</a>
+        </div>
+      </article>
 
-      <div class="about-divider"></div>
-
-      <p class="about-credits">
-        Built by <a href="https://hxr.life" target="_blank" rel="noopener">Hunter</a><br>
-        Powered by Flask, Pillow, and Cropper.js
-      </p>
-    </div>
+      <aside class="about-card about-meta">
+        <div>
+          <div class="section-kicker">Stack</div>
+          <p>Flask, Pillow, NumPy, Cropper.js, seam-carving, and rembg.</p>
+        </div>
+        <div>
+          <div class="section-kicker">Design goal</div>
+          <p>Make a browser editor that feels fast enough to keep open all day, but capable enough to handle difficult image jobs too.</p>
+        </div>
+        <div>
+          <div class="section-kicker">What it does well</div>
+          <ul class="about-list">
+            <li>Fast repeat edits</li>
+            <li>Metadata-aware exports</li>
+            <li>Animated GIF tooling</li>
+            <li>Content-aware and AI-assisted cleanup</li>
+          </ul>
+        </div>
+        <div>
+          <div class="section-kicker">Built by</div>
+          <p>Hunter, with a focus on practical editing workflows rather than toy demo features.</p>
+        </div>
+      </aside>
+    </section>
   </main>
 </body>
 </html>

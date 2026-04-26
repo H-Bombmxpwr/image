@@ -43,6 +43,10 @@ body {
     linear-gradient(180deg, #071015 0%, #0a151b 52%, #0d171e 100%);
 }
 
+body.has-topbar {
+  padding-top: 112px;
+}
+
 a {
   color: inherit;
 }
@@ -55,17 +59,23 @@ textarea {
 }
 
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 60;
   display: grid;
   grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 0.9fr) minmax(320px, 1.6fr);
-  gap: 16px;
+  gap: 14px;
   align-items: center;
-  padding: 18px 22px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--border);
   background: rgba(7, 16, 21, 0.82);
   backdrop-filter: blur(18px);
+}
+
+.topbar-simple {
+  grid-template-columns: 1fr auto;
 }
 
 .brand-kicker,
@@ -79,23 +89,25 @@ textarea {
 }
 
 .brand-name {
-  font-size: clamp(1.8rem, 2.2vw, 2.5rem);
+  font-size: clamp(1.45rem, 1.9vw, 2rem);
   line-height: 1;
   font-weight: 700;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .brand-summary {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   max-width: 34rem;
   color: var(--text-soft);
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .workspace-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 10px 12px;
   border-radius: var(--radius);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015));
   border: 1px solid var(--border);
@@ -160,7 +172,7 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn,
@@ -258,6 +270,11 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(34, 199, 200, 0.12);
 }
 
+.select option {
+  background: #102028;
+  color: var(--text);
+}
+
 .input-sm {
   padding: 8px 10px;
 }
@@ -268,7 +285,18 @@ textarea:focus {
 }
 
 .export-select {
-  min-width: 100px;
+  min-width: 94px;
+  width: 94px;
+}
+
+.actions .select,
+.actions .input {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.actions .num-input {
+  width: 72px;
 }
 
 input[type='range'] {
@@ -638,7 +666,7 @@ input[type='color'] {
 
 .sidebar {
   position: sticky;
-  top: 100px;
+  top: 98px;
   align-self: start;
 }
 
@@ -970,6 +998,10 @@ dialog::backdrop {
 }
 
 @media (max-width: 760px) {
+  body.has-topbar {
+    padding-top: 160px;
+  }
+
   .topbar,
   .app-layout {
     padding: 14px;

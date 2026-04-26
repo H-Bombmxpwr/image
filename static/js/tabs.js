@@ -1,18 +1,24 @@
-export function wireTabs() {
+export function setActivePanel(panelName) {
   const tabs = document.querySelectorAll('.tab');
   const panels = document.querySelectorAll('.panel');
+
+  tabs.forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.panel === panelName);
+  });
+  panels.forEach((panel) => {
+    panel.classList.toggle('active', panel.id === `panel-${panelName}`);
+  });
+}
+
+export function wireTabs() {
+  const tabs = document.querySelectorAll('.tab');
   
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      // Remove active from all tabs and panels
-      tabs.forEach(t => t.classList.remove('active'));
-      panels.forEach(p => p.classList.remove('active'));
-      
-      // Activate clicked tab and corresponding panel
-      tab.classList.add('active');
-      const panelId = 'panel-' + tab.dataset.panel;
-      const panel = document.getElementById(panelId);
-      if (panel) panel.classList.add('active');
+      document.dispatchEvent(new CustomEvent('imagelab:before-panel-change', {
+        detail: { panel: tab.dataset.panel }
+      }));
+      setActivePanel(tab.dataset.panel);
     });
   });
   

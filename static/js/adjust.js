@@ -103,6 +103,23 @@ async function commitAdjustments() {
   }
 }
 
+async function commitPreviewIfNeeded() {
+  clearTimeout(previewTimer);
+  const values = getSliderValues();
+  if (!baseBlob && !isDefault(values) && getCurrentBlob()) {
+    baseBlob = getCurrentBlob();
+  }
+  if (!baseBlob) return;
+  if (isDefault(values)) {
+    if (getCurrentBlob() !== baseBlob) {
+      await replaceCurrentBlob(baseBlob, { recordHistory: false, resetRedo: false });
+    }
+    resetSliders();
+    return;
+  }
+  await commitAdjustments();
+}
+
 export function wireAdjust() {
   const sliders = [
     ['adjBright', 'adjBrightVal', (value) => `${value}%`],
@@ -119,6 +136,9 @@ export function wireAdjust() {
     if (!input || !label) return;
 
     input.addEventListener('input', () => {
+      if (!baseBlob && CURRENT && getCurrentBlob()) {
+        baseBlob = getCurrentBlob();
+      }
       label.textContent = formatter(parseInt(input.value, 10));
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => {
@@ -149,5 +169,9 @@ export function wireAdjust() {
   document.addEventListener('imagelab:new-image', () => {
     clearTimeout(previewTimer);
     resetSliders();
+  });
+
+  document.addEventListener('imagelab:before-panel-change', () => {
+    commitPreviewIfNeeded();
   });
 }

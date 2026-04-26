@@ -133,6 +133,23 @@ async function commitFilters() {
   }
 }
 
+async function commitPreviewIfNeeded() {
+  clearTimeout(previewTimer);
+  const payload = buildPayload();
+  if (!baseBlob && hasAnyFilter(payload) && getCurrentBlob()) {
+    baseBlob = getCurrentBlob();
+  }
+  if (!baseBlob) return;
+  if (!hasAnyFilter(payload)) {
+    if (getCurrentBlob() !== baseBlob) {
+      await replaceCurrentBlob(baseBlob, { recordHistory: false, resetRedo: false });
+    }
+    resetControls();
+    return;
+  }
+  await commitFilters();
+}
+
 export function wireFilters() {
   const checkboxes = [
     'fGrayscale',
@@ -149,6 +166,9 @@ export function wireFilters() {
   checkboxes.forEach((id) => {
     const input = document.getElementById(id);
     input?.addEventListener('change', () => {
+      if (!baseBlob && CURRENT && getCurrentBlob()) {
+        baseBlob = getCurrentBlob();
+      }
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => {
         previewFilters();
@@ -158,6 +178,9 @@ export function wireFilters() {
 
   ['fGaussR', 'fMedianSize', 'fPoster', 'fPixel', 'fSolarize'].forEach((id) => {
     document.getElementById(id)?.addEventListener('change', () => {
+      if (!baseBlob && CURRENT && getCurrentBlob()) {
+        baseBlob = getCurrentBlob();
+      }
       clearTimeout(previewTimer);
       previewTimer = setTimeout(() => {
         previewFilters();
@@ -172,5 +195,9 @@ export function wireFilters() {
   document.addEventListener('imagelab:new-image', () => {
     clearTimeout(previewTimer);
     resetControls();
+  });
+
+  document.addEventListener('imagelab:before-panel-change', () => {
+    commitPreviewIfNeeded();
   });
 }
