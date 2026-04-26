@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import os
+import time
 from flask import Flask, render_template, request, jsonify, send_file
 from PIL import Image
 
@@ -22,6 +23,17 @@ register_heif()
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-change-in-prod")
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+app.config["ASSET_VERSION"] = (
+    os.environ.get("RAILWAY_DEPLOYMENT_ID")
+    or os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+    or os.environ.get("SOURCE_COMMIT")
+    or str(int(time.time()))
+)
+
+
+@app.context_processor
+def inject_asset_version():
+    return {"asset_version": app.config["ASSET_VERSION"]}
 
 
 def _open_uploaded_image(field: str = "image"):
